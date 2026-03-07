@@ -13,6 +13,7 @@ const instrument = ref<any>(null)
 const loading = ref(true)
 const submitting = ref(false)
 const submitted = ref(false)
+const submissionAttempted = ref(false)
 const errorMsg = ref('')
 
 const step = ref<1 | 2 | 3>(1)
@@ -269,6 +270,7 @@ const proceedToStep2 = async () => {
 }
 
 const submitSurvey = async () => {
+  submissionAttempted.value = true
   if (!isStep2Valid.value) {
     toast.error('Mohon isi semua pertanyaan yang wajib untuk SELURUH Dosen di seluruh Matakuliah.')
     return
@@ -659,19 +661,22 @@ const submitSurvey = async () => {
                     <div 
                       v-for="(q, idx) in instrument?.questions" 
                       :key="'c'+course.id+'l'+lecturer.id+'q'+q.id" 
-                      class="pb-6 border-b border-gray-100 last:border-0 last:pb-0"
+                      class="pb-6 border-b transition-colors duration-300"
+                      :class="[(submissionAttempted && q.isRequired && !answers[course.id]?.[lecturer.id]?.[q.id]) ? 'border-red-200 bg-red-50/50 p-4 -mx-4 rounded-xl' : 'border-gray-100 last:border-0 last:pb-0']"
                     >
                       <div class="flex gap-4">
-                        <span class="font-bold text-gray-400 text-lg mt-0.5">{{ Number(idx) + 1 }}.</span>
+                        <span class="font-bold text-gray-400 text-lg mt-0.5" 
+                              :class="{'text-red-400': submissionAttempted && q.isRequired && !answers[course.id]?.[lecturer.id]?.[q.id]}">{{ Number(idx) + 1 }}.</span>
                         <div class="flex-1 space-y-4">
-                          <p class="font-medium text-gray-800 text-lg leading-snug">
+                          <p class="font-medium text-lg leading-snug"
+                             :class="(submissionAttempted && q.isRequired && !answers[course.id]?.[lecturer.id]?.[q.id]) ? 'text-red-800' : 'text-gray-800'">
                             {{ q.text }}
                             <span v-if="q.isRequired" class="text-red-500 ml-1" title="Wajib diisi">*</span>
                           </p>
                           
                           <!-- Required notice -->
-                          <p v-if="q.isRequired && !answers[course.id]?.[lecturer.id]?.[q.id] && submitted" class="text-sm text-red-500 font-medium">
-                            Bidang ini wajib diisi.
+                          <p v-if="q.isRequired && !answers[course.id]?.[lecturer.id]?.[q.id] && submissionAttempted" class="text-sm border border-red-200 bg-red-100 text-red-600 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 w-fit">
+                            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> Bidang ini wajib diisi
                           </p>
 
                           <!-- Likert Scale -->
