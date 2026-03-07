@@ -137,6 +137,10 @@ export async function seedDatabase(dataSource: DataSource) {
 
     // Pengaturan
     { name: 'Kelola Pengaturan', slug: 'settings.manage', group: 'Pengaturan' },
+
+    // Survei & EDOM
+    { name: 'Lihat Survei', slug: 'surveys.view', group: 'Survei' },
+    { name: 'Kelola Survei', slug: 'surveys.manage', group: 'Survei' },
   ];
 
   let created = 0;

@@ -72,11 +72,11 @@ const isStep2Valid = computed(() => {
 // Lifecycle
 onMounted(async () => {
   try {
-    const res = await api.get(`/surveys/public/${instrumentId}`)
+    const res = await api.get(`/public-surveys/${instrumentId}`)
     instrument.value = res.data
     
     // Fetch prodis
-    const prodiRes = await api.get(`/surveys/public/${instrumentId}/study-programs`)
+    const prodiRes = await api.get(`/public-surveys/${instrumentId}/study-programs`)
     studyPrograms.value = prodiRes.data
   } catch (e: any) {
     errorMsg.value = e.response?.data?.message || 'Survei tidak ditemukan atau sudah ditutup.'
@@ -94,7 +94,7 @@ watch(selectedProdiId, async (newVal) => {
   students.value = []
   
   if (newVal) {
-    const res = await api.get(`/surveys/public/${instrumentId}/classes/${newVal}`)
+    const res = await api.get(`/public-surveys/${instrumentId}/classes/${newVal}`)
     classes.value = res.data
   }
 })
@@ -105,7 +105,7 @@ watch(selectedClassId, async (newVal) => {
   students.value = []
   
   if (newVal) {
-    const res = await api.get(`/surveys/public/class-students/${newVal}`)
+    const res = await api.get(`/public-surveys/class-students/${newVal}`)
     students.value = res.data
   }
 })
@@ -221,7 +221,7 @@ const proceedToStep2 = async () => {
   
   try {
     loading.value = true
-    const res = await api.get(`/surveys/public/student-courses/${selectedClassId.value}/${selectedStudentId.value}`)
+    const res = await api.get(`/public-surveys/student-courses/${selectedClassId.value}/${selectedStudentId.value}`)
     studentCourses.value = res.data
     
     // Initialize answers object or load from localStorage
@@ -299,7 +299,7 @@ const submitSurvey = async () => {
       evaluations
     }
 
-    await api.post(`/surveys/public/${instrumentId}/submit`, payload)
+    await api.post(`/public-surveys/${instrumentId}/submit`, payload)
     
     // Clear autosave data on success
     localStorage.removeItem(storageKey.value)

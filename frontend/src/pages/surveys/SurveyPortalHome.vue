@@ -18,7 +18,7 @@ const pingMessage = ref('')
 const fetchSurveys = async () => {
   loading.value = true
   try {
-    const res = await api.get('/surveys/public')
+    const res = await api.get('/public-surveys')
     surveys.value = res.data || []
   } catch (err: any) {
     toast.error('Gagal mengambil daftar survei aktif')

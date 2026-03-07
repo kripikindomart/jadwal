@@ -37,7 +37,7 @@ const toggleClassExpand = (classId: number) => {
 
 const fetchProdis = async () => {
   try {
-    const { data } = await api.get(`/surveys/public/${hash}/study-programs`)
+    const { data } = await api.get(`/public-surveys/${hash}/study-programs`)
     prodis.value = data
   } catch (e) {
     console.error('Failed to load prodis', e)
@@ -49,7 +49,7 @@ const fetchPublicResults = async () => {
   try {
     const params: any = {}
     if (filterProdiId.value) params.prodiId = filterProdiId.value
-    const res = await api.get(`/surveys/public/${hash}/results`, { params })
+    const res = await api.get(`/public-surveys/${hash}/results`, { params })
     results.value = res.data
   } catch (e: any) {
     if (e.response?.status === 404) {
@@ -77,7 +77,7 @@ const fetchRespondents = async () => {
   try {
     const params: any = {}
     if (filterProdiId.value) params.prodiId = filterProdiId.value
-    const res = await api.get(`/surveys/public/${hash}/respondents`, { params })
+    const res = await api.get(`/public-surveys/${hash}/respondents`, { params })
     respondents.value = res.data
     // Auto-expand all classes
     respondents.value?.classes?.forEach((c: any) => {
