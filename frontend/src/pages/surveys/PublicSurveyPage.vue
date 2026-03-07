@@ -128,12 +128,22 @@ onMounted(async () => {
           students.value = studentsRes.data
           studentCourses.value = coursesRes.data
           
+          // Fallback to localStorage first, then override with Server Drafts if they exist
+          const storageKeyVal = `survey_answers_${instrumentId}_${state.selectedStudentId}`
+          const savedAnswersStr = localStorage.getItem(storageKeyVal)
+          if (savedAnswersStr) {
+            answers.value = JSON.parse(savedAnswersStr)
+          } else {
+            answers.value = {}
+          }
+          
           try {
             const draftRes = await api.get(`/public-surveys/${instrumentId}/drafts/${state.selectedClassId}/${state.selectedStudentId}`)
-            answers.value = draftRes.data || {}
+            if (draftRes.data && Object.keys(draftRes.data).length > 0) {
+               answers.value = draftRes.data
+            }
           } catch (e) {
             console.error('Failed to load drafts', e)
-            answers.value = {}
           }
           
           studentCourses.value.forEach((course: any) => {
@@ -198,14 +208,6 @@ watch(selectedStudentId, () => {
   }
 })
 
-// Auto-save logic
-const storageKey = computed(() => `survey_answers_${instrumentId}_${selectedStudentId.value}`)
-
-watch(answers, (newAnswers) => {
-  if (Object.keys(newAnswers).length > 0) {
-    localStorage.setItem(storageKey.value, JSON.stringify(newAnswers))
-  }
-}, { deep: true })
 
 const getCourseCompletionStatus = (courseId: number) => {
   if (!instrument.value?.questions) return false
@@ -298,9 +300,17 @@ const saveDraftToServer = async (currentAnswers: any) => {
 
 const debouncedSaveDraft = debounce(saveDraftToServer, 2000)
 
+const storageKey = computed(() => `survey_answers_${instrumentId}_${selectedStudentId.value}`)
+
 watch(answers, (newAnswers) => {
   if (isRestoring.value) return
   
+  // 1. Immediately save to LocalStorage for fast reload safety
+  if (Object.keys(newAnswers).length > 0) {
+    localStorage.setItem(storageKey.value, JSON.stringify(newAnswers))
+  }
+  
+  // 2. Debounce save to Server for cross-device safety
   debouncedSaveDraft(newAnswers)
   
   // Auto-collapse logic when a course becomes fully completed
@@ -360,13 +370,28 @@ const proceedToStep2 = async () => {
     const res = await api.get(`/public-surveys/${instrumentId}/student-courses/${selectedClassId.value}/${selectedStudentId.value}`)
     studentCourses.value = res.data
     
-    // Initialize answers object from draft server
+    // 1. Initialize answers object or load from localStorage
+    const savedAnswersStr = localStorage.getItem(storageKey.value)
+    
+    if (savedAnswersStr) {
+      try {
+        answers.value = JSON.parse(savedAnswersStr)
+      } catch (e) {
+        console.error('Failed to parse saved answers', e)
+        answers.value = {}
+      }
+    } else {
+      answers.value = {}
+    }
+    
+    // 2. Override with Server Drafts if available
     try {
       const draftRes = await api.get(`/public-surveys/${instrumentId}/drafts/${selectedClassId.value}/${selectedStudentId.value}`)
-      answers.value = draftRes.data || {}
+      if (draftRes.data && Object.keys(draftRes.data).length > 0) {
+        answers.value = draftRes.data
+      }
     } catch (e) {
       console.error('Failed to parse saved answers', e)
-      answers.value = {}
     }
     
     // Ensure all structure exists, even if partially loaded
@@ -443,6 +468,7 @@ const submitSurvey = async () => {
     await api.post(`/public-surveys/${instrumentId}/submit`, payload)
     
     // Clear autosave state on success
+    localStorage.removeItem(storageKey.value)
     localStorage.removeItem(appStateKey.value)
     
     submitted.value = true
