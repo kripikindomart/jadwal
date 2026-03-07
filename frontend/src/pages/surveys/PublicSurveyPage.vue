@@ -208,6 +208,13 @@ watch(selectedStudentId, () => {
   }
 })
 
+const isAllAlreadyEvaluated = computed(() => {
+  if (studentCourses.value.length === 0) return false
+  return studentCourses.value.every(course => {
+    if (!course.lecturers || course.lecturers.length === 0) return true
+    return course.lecturers.every((l: any) => l.isEvaluated)
+  })
+})
 
 const getCourseCompletionStatus = (courseId: number) => {
   if (!instrument.value?.questions) return false
@@ -941,6 +948,14 @@ const submitSurvey = async () => {
           <!-- Submit Button -->
           <div class="flex justify-end pt-8 pb-12 sticky bottom-0 bg-gradient-to-t from-slate-50 via-slate-50 to-transparent z-10 p-4">
             <button 
+              v-if="isAllAlreadyEvaluated"
+              @click="step = 1; scrollToTop()" 
+              class="w-full sm:w-auto px-10 py-3.5 bg-gradient-to-r from-gray-500 to-gray-600 text-white font-bold rounded-xl hover:from-gray-600 hover:to-gray-700 shadow-lg shadow-gray-200 transition-all flex items-center justify-center gap-2"
+            >
+              Kembali
+            </button>
+            <button 
+              v-else
               @click="submitSurvey" 
               :disabled="submitting || studentCourses.length === 0"
               class="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-bold rounded-xl hover:from-indigo-700 hover:to-blue-700 shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
