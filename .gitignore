@@ -1,8 +1,11 @@
 node_modules/
 dist/
 .env
+.env.*
 *.log
 backend_log.txt
 errors.txt
 nul
-backup.sql
+*.sql
+sql/
+*.zip
