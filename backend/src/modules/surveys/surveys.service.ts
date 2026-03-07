@@ -843,10 +843,10 @@ export class SurveysService {
         .andWhere(
           `NOT EXISTS (
             SELECT 1 FROM survey_responses ce
-            WHERE ce.instrumentId = :instrumentId
-            AND ce.studentId = :studentId
-            AND ce.classCourseId = :ccId
-            AND ce.lecturerId = u.id
+            WHERE ce."instrumentId" = :instrumentId
+            AND ce."studentId" = :studentId
+            AND ce."classCourseId" = :ccId
+            AND ce."lecturerId" = u.id
           )`,
           { instrumentId: instrument.id, studentId, ccId: course.id },
         )
