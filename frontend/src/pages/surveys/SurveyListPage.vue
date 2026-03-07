@@ -118,7 +118,8 @@ const copySurveyLink = (item: any) => {
   }
   
   const identifier = item.publicUrlHash || item.id
-  const url = `${window.location.origin}/survey/s/${identifier}`
+  const baseUrl = import.meta.env.VITE_SURVEY_PORTAL_URL || window.location.origin
+  const url = `${baseUrl}/survey/s/${identifier}`
   
   navigator.clipboard.writeText(url)
     .then(() => toast.success('Link halaman survei mahasiswa berhasil disalin'))

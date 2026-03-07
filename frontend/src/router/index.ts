@@ -186,6 +186,12 @@ const router = createRouter({
       meta: { layout: "admin" },
     },
 
+    {
+      path: "/survey-portal",
+      name: "survey.portal.home",
+      component: () => import("@/pages/surveys/SurveyPortalHome.vue"),
+      meta: { public: true, layout: "blank" },
+    },
     // Catch all
     {
       path: "/:pathMatch(.*)*",
@@ -196,6 +202,13 @@ const router = createRouter({
 
 // Navigation guard
 router.beforeEach(async (to, _from, next) => {
+  const isSurveyPortal = import.meta.env.VITE_IS_SURVEY_PORTAL === "true";
+
+  // If we are on the dedicated survey portal, block all non-public routes
+  if (isSurveyPortal && !to.meta.public) {
+    return next({ name: "survey.portal.home" });
+  }
+
   const authStore = useAuthStore();
 
   if (authStore.isAuthenticated && !authStore.user) {
