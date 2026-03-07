@@ -152,6 +152,10 @@ export class SubmitResponseDto {
   @ValidateNested({ each: true })
   @Type(() => SubmitAnswerDto)
   answers: SubmitAnswerDto[];
+
+  @IsBoolean()
+  @IsOptional()
+  isDraft?: boolean;
 }
 
 export class PublicSubmitResponseDto extends SubmitResponseDto {

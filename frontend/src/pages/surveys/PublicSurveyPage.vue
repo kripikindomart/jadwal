@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from '@/composables/useToast'
 import api from '@/lib/api'
 import { ClipboardList, CheckCircle2, ChevronDown, UserSquare2, BookOpen } from 'lucide-vue-next'
+import { debounce } from 'lodash-es'
 
 const route = useRoute()
 const toast = useToast()
@@ -25,6 +26,8 @@ const students = ref<any[]>([])
 const studentCourses = ref<any[]>([]) // new state for Step 2
 
 const isRestoring = ref(false)
+const isDraftSaving = ref(false)
+const draftSavedTimestamp = ref<Date | null>(null)
 
 // Form state step 1
 const selectedProdiId = ref('')
@@ -125,12 +128,11 @@ onMounted(async () => {
           students.value = studentsRes.data
           studentCourses.value = coursesRes.data
           
-          // Answers are restored via storageKey logic in proceedToStep2, but we must do it here too since we're bypassing proceedToStep2
-          const storageKeyVal = `survey_answers_${instrumentId}_${state.selectedStudentId}`
-          const savedAnswersStr = localStorage.getItem(storageKeyVal)
-          if (savedAnswersStr) {
-            answers.value = JSON.parse(savedAnswersStr)
-          } else {
+          try {
+            const draftRes = await api.get(`/public-surveys/${instrumentId}/drafts/${state.selectedClassId}/${state.selectedStudentId}`)
+            answers.value = draftRes.data || {}
+          } catch (e) {
+            console.error('Failed to load drafts', e)
             answers.value = {}
           }
           
@@ -252,10 +254,54 @@ const collapseAllForms = () => {
   studentCourses.value.forEach(c => collapsedCourses.value[c.id] = true)
 }
 
-watch(answers, (newAnswers) => {
-  if (Object.keys(newAnswers).length > 0) {
-    localStorage.setItem(storageKey.value, JSON.stringify(newAnswers))
+// Auto-save logic to Server Database
+const saveDraftToServer = async (currentAnswers: any) => {
+  if (Object.keys(currentAnswers).length === 0 || step.value !== 2 || submitted.value) return
+  
+  isDraftSaving.value = true
+  
+  try {
+    const evaluations: any[] = []
+    
+    studentCourses.value.forEach(course => {
+      if (course.lecturers) {
+        course.lecturers.forEach((l: any) => {
+          if (currentAnswers[course.id] && currentAnswers[course.id][l.id] && Object.keys(currentAnswers[course.id][l.id]).length > 0) {
+            evaluations.push({
+              classCourseId: course.id,
+              lecturerId: l.id,
+              answers: Object.entries(currentAnswers[course.id][l.id]).map(([qId, val]) => ({
+                questionId: parseInt(qId),
+                value: val
+              }))
+            })
+          }
+        })
+      }
+    })
+
+    if (evaluations.length > 0) {
+      const payload = {
+        studentId: parseInt(selectedStudentId.value as string),
+        evaluations,
+        isDraft: true
+      }
+      await api.post(`/public-surveys/${instrumentId}/submit`, payload)
+      draftSavedTimestamp.value = new Date()
+    }
+  } catch (e) {
+    console.error('Gagal menyimpan draft ke server', e)
+  } finally {
+    isDraftSaving.value = false
   }
+}
+
+const debouncedSaveDraft = debounce(saveDraftToServer, 2000)
+
+watch(answers, (newAnswers) => {
+  if (isRestoring.value) return
+  
+  debouncedSaveDraft(newAnswers)
   
   // Auto-collapse logic when a course becomes fully completed
   studentCourses.value.forEach((course) => {
@@ -313,17 +359,12 @@ const proceedToStep2 = async () => {
     const res = await api.get(`/public-surveys/${instrumentId}/student-courses/${selectedClassId.value}/${selectedStudentId.value}`)
     studentCourses.value = res.data
     
-    // Initialize answers object or load from localStorage
-    const savedAnswersStr = localStorage.getItem(storageKey.value)
-    
-    if (savedAnswersStr) {
-      try {
-        answers.value = JSON.parse(savedAnswersStr)
-      } catch (e) {
-        console.error('Failed to parse saved answers', e)
-        answers.value = {}
-      }
-    } else {
+    // Initialize answers object from draft server
+    try {
+      const draftRes = await api.get(`/public-surveys/${instrumentId}/drafts/${selectedClassId.value}/${selectedStudentId.value}`)
+      answers.value = draftRes.data || {}
+    } catch (e) {
+      console.error('Failed to parse saved answers', e)
       answers.value = {}
     }
     
@@ -387,13 +428,13 @@ const submitSurvey = async () => {
 
     const payload = {
       studentId: parseInt(selectedStudentId.value as string),
-      evaluations
+      evaluations,
+      isDraft: false
     }
 
     await api.post(`/public-surveys/${instrumentId}/submit`, payload)
     
-    // Clear autosave data on success
-    localStorage.removeItem(storageKey.value)
+    // Clear autosave state on success
     localStorage.removeItem(appStateKey.value)
     
     submitted.value = true
@@ -417,7 +458,13 @@ const submitSurvey = async () => {
         <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 leading-tight">
           {{ instrument?.title || 'Memuat Survei...' }}
         </h1>
-        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mt-0.5">Evaluasi Dosen oleh Mahasiswa</p>
+        <div class="flex items-center gap-2 mt-0.5">
+          <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Evaluasi Dosen oleh Mahasiswa</p>
+          <span v-if="step === 2 && draftSavedTimestamp" class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex items-center gap-1 mt-0.5">
+            <span v-if="isDraftSaving" class="animate-pulse">Menyimpan...</span>
+            <span v-else>Draft tersimpan otomatis</span>
+          </span>
+        </div>
       </div>
     </header>
 

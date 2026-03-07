@@ -890,6 +890,7 @@ export class SurveysService {
             AND ce."studentId" = :studentId
             AND ce."classCourseId" = :ccId
             AND ce."lecturerId" = u.id
+            AND ce."isDraft" = false
           ) as "isEvaluated"`,
         ])
         .from('class_lecturers', 'cl')
@@ -925,12 +926,13 @@ export class SurveysService {
   }
 
   async submitPublicResponse(hash: string, dto: any) {
-    // any type used temporarily, avoiding extra imports here
     const instrument = await this.getPublicInstrumentDetails(hash);
 
     const responsesToSave = [];
 
-    // dto expects: { studentId: number, evaluations: [{ classCourseId, lecturerId, answers: [...] }] }
+    // Determine if this is a draft submission
+    const isDraft = dto.isDraft ?? false;
+
     for (const evalData of dto.evaluations) {
       // Check if already submitted
       const existing = await this.responseRepo.findOne({
@@ -940,30 +942,94 @@ export class SurveysService {
           studentId: dto.studentId,
           lecturerId: evalData.lecturerId,
         },
+        relations: ['answers'],
       });
 
       if (existing) {
-        throw new ConflictException(
-          'Anda sudah mengisi survei untuk salah satu dosen pada matakuliah ini',
-        );
-      }
+        // If it exists and is NOT a draft, and the user is trying to submit again, block it.
+        // If it's a draft update or finalising a draft, allow it by updating.
+        if (!existing.isDraft && !isDraft) {
+          // Both are not drafts -> Duplicate final submission attempt
+          throw new ConflictException(
+            'Anda sudah mengisi survei untuk salah satu dosen pada matakuliah ini',
+          );
+        } else if (!existing.isDraft && isDraft) {
+          // Exists as final, trying to save as draft -> Ignore or throw error
+          continue;
+        }
 
-      const response = this.responseRepo.create({
-        instrumentId: instrument.id,
-        classCourseId: evalData.classCourseId,
-        studentId: dto.studentId,
-        lecturerId: evalData.lecturerId,
-        answers: evalData.answers.map((a: any) =>
+        // Update existing draft
+        existing.isDraft = isDraft;
+
+        // Remove old answers and replace with new ones
+        await this.answerRepo.remove(existing.answers);
+
+        existing.answers = evalData.answers.map((a: any) =>
           this.answerRepo.create({
             questionId: a.questionId,
             value: a.value,
           }),
-        ),
-      });
+        );
 
-      responsesToSave.push(response);
+        responsesToSave.push(existing);
+      } else {
+        // Create new response
+        const response = this.responseRepo.create({
+          instrumentId: instrument.id,
+          classCourseId: evalData.classCourseId,
+          studentId: dto.studentId,
+          lecturerId: evalData.lecturerId,
+          isDraft: isDraft,
+          answers: evalData.answers.map((a: any) =>
+            this.answerRepo.create({
+              questionId: a.questionId,
+              value: a.value,
+            }),
+          ),
+        });
+
+        responsesToSave.push(response);
+      }
     }
 
     return this.responseRepo.save(responsesToSave);
+  }
+
+  async getDraftResponse(hash: string, classId: number, studentId: number) {
+    const instrument = await this.getPublicInstrumentDetails(hash);
+
+    // Get all drafts for this student on this instrument
+    const drafts = await this.responseRepo.find({
+      where: {
+        instrumentId: instrument.id,
+        studentId,
+        isDraft: true,
+      },
+      relations: ['answers'],
+    });
+
+    // Format them for the frontend
+    // Expected Output: { [classCourseId]: { [lecturerId]: { [questionId]: value } } }
+    const formattedAnswers: Record<
+      number,
+      Record<number, Record<number, string>>
+    > = {};
+
+    drafts.forEach((draft) => {
+      if (!formattedAnswers[draft.classCourseId]) {
+        formattedAnswers[draft.classCourseId] = {};
+      }
+      if (!formattedAnswers[draft.classCourseId][draft.lecturerId]) {
+        formattedAnswers[draft.classCourseId][draft.lecturerId] = {};
+      }
+
+      draft.answers.forEach((ans) => {
+        formattedAnswers[draft.classCourseId][draft.lecturerId][
+          ans.questionId
+        ] = ans.value;
+      });
+    });
+
+    return formattedAnswers;
   }
 }

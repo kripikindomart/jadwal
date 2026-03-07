@@ -101,4 +101,16 @@ export class PublicSurveysController {
   submit(@Param('hash') hash: string, @Body() dto: any) {
     return this.surveysService.submitPublicResponse(hash, dto);
   }
+
+  @Get(':hash/drafts/:classId/:studentId')
+  @ApiOperation({
+    summary: 'Mendapatkan draft jawaban survei mahasiswa jika ada',
+  })
+  getDrafts(
+    @Param('hash') hash: string,
+    @Param('classId', ParseIntPipe) classId: number,
+    @Param('studentId', ParseIntPipe) studentId: number,
+  ) {
+    return this.surveysService.getDraftResponse(hash, classId, studentId);
+  }
 }

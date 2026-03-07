@@ -52,6 +52,9 @@ export class SurveyResponse {
   @OneToMany(() => SurveyAnswer, (a) => a.response, { cascade: true })
   answers: SurveyAnswer[];
 
+  @Column({ default: true })
+  isDraft: boolean;
+
   @CreateDateColumn()
   submittedAt: Date;
 }
