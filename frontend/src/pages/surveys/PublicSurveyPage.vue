@@ -360,7 +360,7 @@ const proceedToStep2 = async () => {
 const submitSurvey = async () => {
   submissionAttempted.value = true
   if (!isStep2Valid.value) {
-    toast.error('Mohon isi semua pertanyaan yang wajib untuk SELURUH Dosen di seluruh Matakuliah.')
+    toast.error('Mohon isi semua pertanyaan yang wajib untuk SELURUH Dosen. Klik pada nama dosen yang berwarna merah di navigasi samping untuk menyelesaikan evaluasi.')
     scrollToTop()
     return
   }
