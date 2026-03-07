@@ -13,7 +13,7 @@ import { PublicSubmitResponseDto } from './dto/survey.dto';
 import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('Public Surveys')
-@Controller('api/surveys/public')
+@Controller('api/public-surveys')
 @Public()
 export class PublicSurveysController {
   constructor(private readonly surveysService: SurveysService) {}
