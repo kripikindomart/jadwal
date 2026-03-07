@@ -13,6 +13,7 @@ import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { SemestersService } from './semesters.service';
 import { CreateSemesterDto, UpdateSemesterDto } from './dto/academic.dto';
 import { BulkActionDto } from '../../common/dto/bulk.dto';
@@ -25,6 +26,7 @@ export class SemestersController {
   constructor(private readonly service: SemestersService) {}
 
   @Get()
+  @Public()
   @RequirePermissions('semesters.view')
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'perPage', required: false })
