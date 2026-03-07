@@ -280,6 +280,50 @@ onMounted(() => {
           </div>
         </template>
 
+        <!-- TAB: SPREADSHEET (DATA MENTAH) -->
+        <template v-else-if="activeTab === 'spreadsheet'">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+            <table class="w-full text-left text-sm whitespace-nowrap">
+              <thead class="bg-gray-50 text-gray-600 border-b border-gray-100">
+                <tr>
+                  <th class="px-4 py-3 font-semibold w-10">No</th>
+                  <th class="px-4 py-3 font-semibold">Tanggal</th>
+                  <th class="px-4 py-3 font-semibold">NIM</th>
+                  <th class="px-4 py-3 font-semibold">Mahasiswa</th>
+                  <th class="px-4 py-3 font-semibold">Kelas</th>
+                  <th class="px-4 py-3 font-semibold">Matakuliah</th>
+                  <th class="px-4 py-3 font-semibold border-r border-gray-200">Dosen Dinilai</th>
+                  <th v-for="(q, idx) in results?.instrument?.questions" :key="q.id" class="px-4 py-3 font-semibold max-w-[200px] truncate text-center" :title="q.text">
+                    P{{ Number(idx) + 1 }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                <tr v-for="(row, idx) in results?.spreadsheetData" :key="row.id" class="hover:bg-gray-50/50">
+                  <td class="px-4 py-3 text-gray-500">{{ Number(idx) + 1 }}</td>
+                  <td class="px-4 py-3">{{ new Date(row.submittedAt).toLocaleDateString('id-ID') }}</td>
+                  <td class="px-4 py-3 text-gray-600 font-medium">{{ row.studentNim || '-' }}</td>
+                  <td class="px-4 py-3">{{ row.studentName || '-' }}</td>
+                  <td class="px-4 py-3">{{ row.className || '-' }}</td>
+                  <td class="px-4 py-3 text-indigo-700">{{ row.courseName || '-' }}</td>
+                  <td class="px-4 py-3 border-r border-gray-100 font-medium">{{ row.lecturerName || '-' }}</td>
+                  <td v-for="q in results?.instrument?.questions" :key="'ans-'+q.id" class="px-4 py-3 max-w-[250px] truncate text-center" :title="row.answers[q.id]?.value || '-'">
+                    <span v-if="q.type === 'likert'" :class="[getScoreColor(Number(row.answers[q.id]?.value)), 'px-2 py-0.5 rounded-full font-bold text-xs inline-block min-w-8']">
+                       {{ row.answers[q.id]?.value || '-' }}
+                    </span>
+                    <span v-else>
+                      {{ row.answers[q.id]?.value || '-' }}
+                    </span>
+                  </td>
+                </tr>
+                <tr v-if="!results?.spreadsheetData?.length">
+                   <td :colspan="7 + (results?.instrument?.questions?.length || 0)" class="text-center py-10 text-gray-500 italic">Belum ada data evaluasi.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+
         <!-- TAB: RESPONDEN -->
         <template v-else-if="activeTab === 'responden'">
           <div v-if="respondentsLoading" class="text-center py-12 text-gray-500">

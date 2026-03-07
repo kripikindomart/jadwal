@@ -221,7 +221,7 @@ const proceedToStep2 = async () => {
   
   try {
     loading.value = true
-    const res = await api.get(`/public-surveys/${instrumentId.value}/student-courses/${selectedClassId.value}/${selectedStudentId.value}`)
+    const res = await api.get(`/public-surveys/${instrumentId}/student-courses/${selectedClassId.value}/${selectedStudentId.value}`)
     studentCourses.value = res.data
     
     // Initialize answers object or load from localStorage
