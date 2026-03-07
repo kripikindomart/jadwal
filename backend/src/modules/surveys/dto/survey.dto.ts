@@ -8,6 +8,7 @@ import {
   IsEnum,
   ValidateNested,
   Min,
+  Matches,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -25,6 +26,14 @@ export class CreateInstrumentDto {
   @IsString()
   @IsOptional()
   redirectUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  @Matches(/^[a-zA-Z0-9_-]+$/, {
+    message:
+      'Link kustom hanya boleh berisi huruf, angka, setrip (-), dan garis bawah (_)',
+  })
+  publicUrlHash?: string;
 
   @IsNumber()
   @IsOptional()
@@ -47,6 +56,14 @@ export class UpdateInstrumentDto {
   @IsString()
   @IsOptional()
   redirectUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  @Matches(/^[a-zA-Z0-9_-]+$/, {
+    message:
+      'Link kustom hanya boleh berisi huruf, angka, setrip (-), dan garis bawah (_)',
+  })
+  publicUrlHash?: string;
 
   @IsNumber()
   @IsOptional()

@@ -22,6 +22,7 @@ const form = ref({
   title: '',
   description: '',
   semesterId: '' as string | number,
+  publicUrlHash: '',
   isActive: true,
 })
 
@@ -49,11 +50,12 @@ const openModal = (type: 'create' | 'edit', item?: any) => {
       title: item.title,
       description: item.description || '',
       semesterId: item.semesterId || '',
+      publicUrlHash: item.publicUrlHash || '',
       isActive: item.isActive,
     }
   } else {
     selectedItem.value = null
-    form.value = { title: '', description: '', semesterId: '', isActive: true }
+    form.value = { title: '', description: '', semesterId: '', publicUrlHash: '', isActive: true }
   }
   isModalOpen.value = true
 }
@@ -65,6 +67,7 @@ const handleSubmit = async () => {
       title: form.value.title,
       description: form.value.description || null,
       semesterId: form.value.semesterId ? Number(form.value.semesterId) : null,
+      publicUrlHash: form.value.publicUrlHash || undefined,
       isActive: form.value.isActive,
     }
     if (actionType.value === 'create') {
@@ -241,6 +244,15 @@ onMounted(fetchData)
             <option value="">Semua Semester</option>
             <option v-for="s in semesters" :key="s.id" :value="s.id">{{ s.name }}</option>
           </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Custom Link URL Khusus (Opsional)</label>
+          <div class="flex items-center">
+            <span class="bg-gray-100 border border-r-0 border-gray-300 text-gray-500 text-sm px-3 py-2 rounded-l-lg whitespace-nowrap hidden sm:inline">survei.ppsuika.ac.id/survey/s/</span>
+            <input v-model="form.publicUrlHash" type="text" placeholder="kosongkan untuk link acak" pattern="[a-zA-Z0-9_-]+" title="Hanya huruf, angka, pemisah (-)"
+              class="w-full px-4 py-2 rounded-lg sm:rounded-l-none border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 font-mono text-sm" />
+          </div>
+          <p class="text-[11px] text-gray-500 mt-1">Hanya boleh berisi huruf, angka, setrip (-), dan garis bawah (_). Jika dikosongkan, sistem akan membuatkan kode acak.</p>
         </div>
         <div class="flex items-center gap-2">
           <input type="checkbox" v-model="form.isActive" id="isActive" class="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500" />

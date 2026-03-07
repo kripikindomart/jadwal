@@ -72,12 +72,35 @@ export class SurveysService {
   }
 
   async createInstrument(dto: CreateInstrumentDto) {
+    if (dto.publicUrlHash) {
+      const existing = await this.instrumentRepo.findOne({
+        where: { publicUrlHash: dto.publicUrlHash },
+      });
+      if (existing) {
+        throw new ConflictException(
+          'Custom Link URL ini sudah digunakan pada survei lain. Silakan pilih link yang berbeda.',
+        );
+      }
+    }
+
     const instrument = this.instrumentRepo.create(dto);
     return this.instrumentRepo.save(instrument);
   }
 
   async updateInstrument(id: number, dto: UpdateInstrumentDto) {
     const instrument = await this.findInstrumentById(id);
+
+    if (dto.publicUrlHash && dto.publicUrlHash !== instrument.publicUrlHash) {
+      const existing = await this.instrumentRepo.findOne({
+        where: { publicUrlHash: dto.publicUrlHash },
+      });
+      if (existing) {
+        throw new ConflictException(
+          'Custom Link URL ini sudah digunakan pada survei lain. Silakan pilih link yang berbeda.',
+        );
+      }
+    }
+
     Object.assign(instrument, dto);
     return this.instrumentRepo.save(instrument);
   }
