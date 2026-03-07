@@ -842,7 +842,7 @@ export class SurveysService {
         .where('cl.classCourseId = :ccId', { ccId: course.id })
         .andWhere(
           `NOT EXISTS (
-            SELECT 1 FROM course_evaluations ce
+            SELECT 1 FROM survey_responses ce
             WHERE ce.instrumentId = :instrumentId
             AND ce.studentId = :studentId
             AND ce.classCourseId = :ccId
