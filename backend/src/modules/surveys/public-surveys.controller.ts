@@ -18,6 +18,14 @@ import { Public } from '../../common/decorators/public.decorator';
 export class PublicSurveysController {
   constructor(private readonly surveysService: SurveysService) {}
 
+  @Get()
+  @ApiOperation({
+    summary: 'Mendapatkan semua instrumen survei publik yang aktif',
+  })
+  getActiveSurveys() {
+    return this.surveysService.getPublicActiveSurveys();
+  }
+
   @Get(':hash')
   @ApiOperation({ summary: 'Mendapatkan detail instrumen survei publik' })
   getInstrument(@Param('hash') hash: string) {

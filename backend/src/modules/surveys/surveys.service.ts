@@ -651,6 +651,22 @@ export class SurveysService {
 
   // ============ PUBLIC EVALUATION ============
 
+  async getPublicActiveSurveys() {
+    return this.instrumentRepo.find({
+      where: { isActive: true },
+      order: { createdAt: 'DESC' },
+      select: [
+        'id',
+        'title',
+        'description',
+        'isActive',
+        'publicUrlHash',
+        'semesterId',
+        'createdAt',
+      ],
+    });
+  }
+
   async getPublicInstrumentDetails(hash: string) {
     const numericId = isNaN(Number(hash)) ? 0 : Number(hash);
     const instrument = await this.instrumentRepo.findOne({
