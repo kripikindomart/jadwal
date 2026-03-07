@@ -356,6 +356,7 @@ const proceedToStep2 = async () => {
   
   try {
     loading.value = true
+    isRestoring.value = true
     const res = await api.get(`/public-surveys/${instrumentId}/student-courses/${selectedClassId.value}/${selectedStudentId.value}`)
     studentCourses.value = res.data
     
@@ -391,8 +392,15 @@ const proceedToStep2 = async () => {
 
     step.value = 2
     scrollToTop()
+    
+    // Allow reactivity settle before ending restore phase
+    setTimeout(() => {
+      isRestoring.value = false
+    }, 500)
+    
   } catch (error: any) {
     toast.error('Gagal memuat data matakuliah mahasiswa.')
+    isRestoring.value = false
   } finally {
     loading.value = false
   }
