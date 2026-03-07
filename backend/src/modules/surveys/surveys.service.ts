@@ -653,9 +653,9 @@ export class SurveysService {
       .getRawMany();
 
     return results.map((p) => ({
-      id: p.p_id,
-      name: p.p_name,
-      code: p.p_code,
+      id: p.p_id || p.id,
+      name: p.p_name || p.name,
+      code: p.p_code || p.code,
     }));
   }
 
