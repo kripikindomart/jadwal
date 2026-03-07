@@ -79,16 +79,21 @@ export class PublicSurveysController {
     return this.surveysService.getPublicClassStudents(classId);
   }
 
-  @Get('student-courses/:classId/:studentId')
+  @Get(':hash/student-courses/:classId/:studentId')
   @ApiOperation({
     summary:
       'Mendapatkan MK dan Dosen untuk mahasiswa tertentu di sebuah Kelas',
   })
   getStudentClassCourses(
+    @Param('hash') hash: string,
     @Param('classId', ParseIntPipe) classId: number,
     @Param('studentId', ParseIntPipe) studentId: number,
   ) {
-    return this.surveysService.getPublicStudentClassCourses(classId, studentId);
+    return this.surveysService.getPublicStudentClassCourses(
+      hash,
+      classId,
+      studentId,
+    );
   }
 
   @Post(':hash/submit')

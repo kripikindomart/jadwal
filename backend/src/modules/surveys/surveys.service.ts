@@ -800,7 +800,18 @@ export class SurveysService {
     }));
   }
 
-  async getPublicStudentClassCourses(classId: number, studentId: number) {
+  async getPublicStudentClassCourses(
+    hash: string,
+    classId: number,
+    studentId: number,
+  ) {
+    // Get the instrument id first
+    const instrument = await this.instrumentRepo.findOne({
+      where: { publicUrlHash: hash },
+    });
+    if (!instrument) {
+      throw new NotFoundException('Instrumen tidak ditemukan');
+    }
     // 1. Get all courses the student is enrolled in for this specific class
     const courses = await this.responseRepo.manager
       .createQueryBuilder()
@@ -829,6 +840,16 @@ export class SurveysService {
         .leftJoin('users', 'u', 'u.id = cl.lecturerId')
         .leftJoin('lecturer_profiles', 'lp', 'lp.userId = u.id')
         .where('cl.classCourseId = :ccId', { ccId: course.id })
+        .andWhere(
+          `NOT EXISTS (
+            SELECT 1 FROM course_evaluations ce
+            WHERE ce.instrumentId = :instrumentId
+            AND ce.studentId = :studentId
+            AND ce.classCourseId = :ccId
+            AND ce.lecturerId = u.id
+          )`,
+          { instrumentId: instrument.id, studentId, ccId: course.id },
+        )
         .getRawMany();
 
       course.lecturers = lecturers.map((l) => {
