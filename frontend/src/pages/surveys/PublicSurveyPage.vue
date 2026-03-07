@@ -256,8 +256,8 @@ const proceedToStep2 = async () => {
     })
     
     if (studentCourses.value.length === 0) {
-      toast.error('Gagal mendapatkan matakuliah Anda, atau anda belum mengambil matakuliah apapun di kelas ini.')
-      return
+      // Don't throw error, just proceed to step 2 which will show the "completed" state instead.
+      // toast.error('Gagal mendapatkan matakuliah Anda, atau anda belum mengambil matakuliah apapun di kelas ini.')
     }
 
     step.value = 2
@@ -497,13 +497,32 @@ const submitSurvey = async () => {
               </div>
             </div>
 
-            <div class="space-y-4">
+            <div v-if="studentCourses.length === 0" class="bg-emerald-50 border border-emerald-100 p-8 rounded-2xl text-center space-y-4 shadow-sm animate-in zoom-in-95 duration-500">
+              <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2 shadow-inner">
+                <CheckCircle2 class="w-8 h-8" />
+              </div>
+              <h3 class="text-xl font-bold text-gray-900">Anda Telah Mengisi Survei</h3>
+              <p class="text-gray-600 max-w-md mx-auto">
+                Sistem mendeteksi bahwa Anda telah menyelesaikan seluruh evaluasi dosen pada instrumen ini. Tidak ada lagi matakuliah yang perlu dievaluasi.
+              </p>
+              <div class="pt-4">
+                <button @click="step = 1; selectedStudentId = ''; studentSearchQuery = ''" class="px-6 py-2.5 bg-white border-2 border-emerald-100 text-emerald-700 font-semibold rounded-xl hover:bg-emerald-50 transition-colors inline-flex items-center gap-2">
+                  Kembali ke Identifikasi
+                </button>
+              </div>
+            </div>
+
+            <div v-else class="space-y-4">
               <div v-for="(course, idx) in studentCourses" :key="course.id" class="border border-gray-100 rounded-xl p-4 sm:p-5 hover:border-indigo-100 transition-colors bg-gray-50/50">
                 <div class="font-bold text-gray-800 mb-3 text-lg">{{ idx + 1 }}. {{ course.courseCode ? course.courseCode + ' - ' : '' }}{{ course.courseName }}</div>
                 <div class="pl-4 sm:pl-8 space-y-2">
                   <template v-if="course.lecturers && course.lecturers.length > 0">
-                    <div v-for="lecturer in course.lecturers" :key="lecturer.id" class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-sm text-gray-600 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-                      <span class="font-medium text-gray-800 text-sm sm:text-base">{{ lecturer.frontTitle ? lecturer.frontTitle + ' ' : '' }}{{ lecturer.name }}{{ lecturer.backTitle ? ', ' + lecturer.backTitle : '' }}</span>
+                    <div v-for="lecturer in course.lecturers" :key="lecturer.id" class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-sm text-gray-600 bg-white p-3 rounded-xl border border-gray-100 shadow-sm relative overflow-hidden">
+                      <div class="absolute left-0 top-0 bottom-0 w-1 bg-amber-400"></div>
+                      <span class="font-medium text-gray-800 text-sm sm:text-base ml-2">{{ lecturer.frontTitle ? lecturer.frontTitle + ' ' : '' }}{{ lecturer.name }}{{ lecturer.backTitle ? ', ' + lecturer.backTitle : '' }}</span>
+                      <span class="ml-auto flex items-center gap-1.5 text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md border border-amber-100">
+                        Belum Dinilai
+                      </span>
                     </div>
                   </template>
                   <div v-else class="text-sm text-gray-400 italic bg-white p-3 rounded-xl border border-gray-100">Tidak ada dosen pengampu</div>
@@ -511,7 +530,7 @@ const submitSurvey = async () => {
               </div>
             </div>
 
-            <div class="pt-6 mt-4 border-t border-gray-100 flex justify-end gap-3">
+            <div v-if="studentCourses.length > 0" class="pt-6 mt-4 border-t border-gray-100 flex justify-end gap-3">
               <button 
                 @click="step = 3; scrollToTop()" 
                 class="px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 flex items-center gap-2"
@@ -542,8 +561,10 @@ const submitSurvey = async () => {
 
                 <div class="border-t border-gray-100 pt-4 pb-2">
                   <div class="flex items-center justify-between mb-4 pl-2 pr-1">
-                    <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Daftar Matakuliah</p>
-                    <div class="flex gap-1.5">
+                    <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest leading-relaxed">Daftar Matakuliah<br>
+                      <span v-if="submissionAttempted && !isStep2Valid" class="text-red-500 normal-case mt-1 max-w-[12rem] block">⚠️ Lengkapi nama merah!</span>
+                    </p>
+                    <div class="flex gap-1.5 self-start">
                       <button @click="expandAllSidebar" class="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors bg-indigo-50 px-2 py-1 rounded shadow-sm border border-indigo-100" title="Buka Semua List Sidebar">Expand</button>
                       <button @click="collapseAllSidebar" class="text-[9px] font-bold text-gray-500 hover:text-gray-700 transition-colors bg-gray-100 px-2 py-1 rounded shadow-sm border border-gray-200" title="Tutup Semua List Sidebar">Collapse</button>
                     </div>
@@ -583,10 +604,12 @@ const submitSurvey = async () => {
                           >
                             <div class="mt-0.5 shrink-0">
                               <CheckCircle2 v-if="getLecturerCompletionStatus(course.id, lecturer.id)" class="w-3.5 h-3.5 text-emerald-500" />
+                              <div v-else-if="submissionAttempted && !getLecturerCompletionStatus(course.id, lecturer.id)" class="w-3.5 h-3.5 rounded-full border-2 border-red-400 bg-red-100 text-red-600 mt-0.5 flex items-center justify-center font-bold text-[8px]">!</div>
                               <div v-else class="w-3.5 h-3.5 rounded-full border-2 border-gray-300 group-hover:border-indigo-400 mt-0.5"></div>
                             </div>
                             <div class="min-w-0 flex-1">
-                              <p class="text-xs font-medium text-gray-600 group-hover:text-indigo-700 leading-tight line-clamp-2">
+                              <p class="text-xs font-medium leading-tight line-clamp-2 transition-colors"
+                                 :class="(submissionAttempted && !getLecturerCompletionStatus(course.id, lecturer.id)) ? 'text-red-600 font-bold' : 'text-gray-600 group-hover:text-indigo-700'">
                                 <span class="font-bold mr-1">D{{ Number(lIdx) + 1 }}.</span>{{ lecturer.name }}
                               </p>
                             </div>
