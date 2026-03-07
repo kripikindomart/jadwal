@@ -168,4 +168,17 @@ export class SurveysController {
   ) {
     return this.surveysService.deleteResponse(id, responseId);
   }
+
+  @Delete(':id/reset')
+  @RequirePermissions('surveys.manage')
+  @ApiOperation({ summary: 'Reset seluluh data survei (opsional per rombel)' })
+  resetData(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('classId') classId?: string,
+  ) {
+    return this.surveysService.resetData(
+      id,
+      classId ? parseInt(classId) : undefined,
+    );
+  }
 }

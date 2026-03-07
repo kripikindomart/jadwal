@@ -4,7 +4,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { SurveyInstrument } from '../../database/entities/survey-instrument.entity';
 import { SurveyQuestion } from '../../database/entities/survey-question.entity';
 import { SurveyResponse } from '../../database/entities/survey-response.entity';
@@ -649,6 +649,49 @@ export class SurveysService {
     return { message: 'Response berhasil dihapus/direset' };
   }
 
+  async resetData(instrumentId: number, classId?: number) {
+    if (classId) {
+      const classCourses = await this.responseRepo.manager
+        .createQueryBuilder()
+        .select('cc.id')
+        .from('class_courses', 'cc')
+        .where('cc.classId = :classId', { classId })
+        .getRawMany();
+
+      const courseIds = classCourses.map((c) => c.cc_id || c.id);
+
+      if (courseIds.length > 0) {
+        // Find responses
+        const responses = await this.responseRepo.find({
+          where: {
+            instrumentId,
+            classCourseId: In(courseIds),
+          },
+          select: ['id'],
+        });
+        const responseIds = responses.map((r) => r.id);
+
+        if (responseIds.length > 0) {
+          await this.answerRepo.delete({ responseId: In(responseIds) });
+          await this.responseRepo.delete(responseIds);
+        }
+      }
+      return { message: 'Berhasil mereset data survei untuk kelas tersebut' };
+    } else {
+      const responses = await this.responseRepo.find({
+        where: { instrumentId },
+        select: ['id'],
+      });
+      const responseIds = responses.map((r) => r.id);
+
+      if (responseIds.length > 0) {
+        await this.answerRepo.delete({ responseId: In(responseIds) });
+        await this.responseRepo.delete(responseIds);
+      }
+      return { message: 'Berhasil mereset seluruh data survei' };
+    }
+  }
+
   // ============ PUBLIC EVALUATION ============
 
   async getPublicActiveSurveys() {
@@ -835,21 +878,28 @@ export class SurveysService {
     for (const course of mappedCourses) {
       const lecturers = await this.responseRepo.manager
         .createQueryBuilder()
-        .select(['u.id', 'u.name', 'lp.frontTitle', 'lp.backTitle', 'lp.nidn'])
-        .from('class_lecturers', 'cl')
-        .leftJoin('users', 'u', 'u.id = cl.lecturerId')
-        .leftJoin('lecturer_profiles', 'lp', 'lp.userId = u.id')
-        .where('cl.classCourseId = :ccId', { ccId: course.id })
-        .andWhere(
-          `NOT EXISTS (
+        .select([
+          'u.id',
+          'u.name',
+          'lp.frontTitle',
+          'lp.backTitle',
+          'lp.nidn',
+          `EXISTS (
             SELECT 1 FROM survey_responses ce
             WHERE ce."instrumentId" = :instrumentId
             AND ce."studentId" = :studentId
             AND ce."classCourseId" = :ccId
             AND ce."lecturerId" = u.id
-          )`,
-          { instrumentId: instrument.id, studentId, ccId: course.id },
-        )
+          ) as "isEvaluated"`,
+        ])
+        .from('class_lecturers', 'cl')
+        .leftJoin('users', 'u', 'u.id = cl.lecturerId')
+        .leftJoin('lecturer_profiles', 'lp', 'lp.userId = u.id')
+        .where('cl.classCourseId = :ccId', {
+          ccId: course.id,
+          instrumentId: instrument.id,
+          studentId: studentId,
+        })
         .getRawMany();
 
       course.lecturers = lecturers.map((l) => {
@@ -862,6 +912,12 @@ export class SurveysService {
           id: l.u_id,
           name: fullName,
           nidn: l.lp_nidn,
+          isEvaluated:
+            l.isEvaluated === true ||
+            l.isevaluated === true ||
+            l.isevaluated === 'true' ||
+            l.isevaluated === '1' ||
+            l.isevaluated === 1,
         };
       });
     }

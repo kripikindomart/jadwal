@@ -119,6 +119,28 @@ const handleDeleteResponse = (responseId: number) => {
   })
 }
 
+const handleResetData = (classId?: number, className?: string) => {
+  confirm.requireConfirm({
+    title: classId ? `Reset Data ${className}` : 'Reset Semua Data Survei',
+    message: classId 
+      ? `Apakah Anda yakin ingin menghapus seluruh data respons untuk kelas ${className}? Tindakan ini tidak dapat dibatalkan.`
+      : 'PERINGATAN: Apakah Anda yakin ingin menghapus SELURUH data respons untuk survei ini? Semua mahasiswa harus mengisi ulang dari awal. Tindakan ini TIDAK DAPAT DIBATALKAN.',
+    confirmText: 'Ya, Reset Data',
+    cancelText: 'Batal',
+    onConfirm: async () => {
+      try {
+        const url = classId ? `/surveys/${instrumentId}/reset?classId=${classId}` : `/surveys/${instrumentId}/reset`
+        await api.delete(url)
+        toast.success(classId ? `Berhasil mereset data kelas ${className}` : 'Berhasil mereset seluruh data survei')
+        await fetchRespondents()
+        await fetchResults()
+      } catch (e: any) {
+        toast.error('Gagal mereset data survei')
+      }
+    },
+  })
+}
+
 watch(filterProdiId, () => {
   fetchResults()
   fetchRespondents()
@@ -190,6 +212,13 @@ onMounted(() => {
             <div class="absolute bottom-[-32px] right-0 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-gray-800 text-white text-[10px] py-1 px-2 rounded pointer-events-none">
               Copy public link
             </div>
+          </div>
+          
+          <!-- Global Reset Button -->
+          <div class="relative group">
+            <button @click="handleResetData()" class="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 font-semibold rounded-lg text-sm border border-red-100 transition-colors" title="Reset Semua Data Survei">
+              <Trash2 class="w-4 h-4" /> Reset Semua Data
+            </button>
           </div>
         </div>
       </div>
@@ -357,7 +386,7 @@ onMounted(() => {
       <div v-else class="space-y-4">
         <div v-for="cls in respondents.classes" :key="cls.classId" class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <!-- Class Header -->
-          <button @click="toggleClassExpand(cls.classId)" class="w-full flex items-center justify-between p-5 hover:bg-gray-50/50 transition-colors text-left">
+          <div @click="toggleClassExpand(cls.classId)" class="w-full flex items-center justify-between p-5 hover:bg-gray-50/50 transition-colors text-left cursor-pointer">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center shrink-0">
                 <Users class="w-5 h-5 text-purple-700" />
@@ -383,9 +412,14 @@ onMounted(() => {
               <div class="px-3 py-1 rounded-full text-xs font-bold" :class="cls.filledCount === cls.totalStudents ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'">
                 {{ cls.filledCount }}/{{ cls.totalStudents }}
               </div>
-              <ChevronDown :class="['w-5 h-5 text-gray-400 transition-transform', expandedClasses[cls.classId] ? 'rotate-180' : '']" />
+              <button @click.stop="handleResetData(cls.classId, cls.className)" class="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200" title="Reset Data Kelas Ini">
+                <Trash2 class="w-4 h-4" />
+              </button>
+              <button @click.stop="toggleClassExpand(cls.classId)" class="p-1 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors">
+                <ChevronDown :class="['w-5 h-5 transition-transform', expandedClasses[cls.classId] ? 'rotate-180' : '']" />
+              </button>
             </div>
-          </button>
+          </div>
 
           <!-- Student List -->
           <div v-if="expandedClasses[cls.classId]" class="border-t border-gray-100">
@@ -437,7 +471,7 @@ onMounted(() => {
     </div>
 
     <!-- Modal Detail Response Mahasiswa -->
-    <Transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100" leave-to-class="opacity-0">
+    <Transition name="fade">
       <div v-if="isDetailModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
         <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" @click="closeStudentDetail"></div>
         <div class="relative w-full max-w-2xl rounded-2xl bg-white shadow-xl flex flex-col max-h-[90vh] animate-in slide-in-from-bottom-4 duration-300">

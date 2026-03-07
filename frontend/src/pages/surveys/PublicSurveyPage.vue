@@ -24,6 +24,8 @@ const classes = ref<any[]>([])
 const students = ref<any[]>([])
 const studentCourses = ref<any[]>([]) // new state for Step 2
 
+const isRestoring = ref(false)
+
 // Form state step 1
 const selectedProdiId = ref('')
 const selectedClassId = ref('')
@@ -61,6 +63,7 @@ const isStep2Valid = computed(() => {
   studentCourses.value.forEach(course => {
     if (course.lecturers) {
       course.lecturers.forEach((l: any) => {
+        if (l.isEvaluated) return // Skip validation for already evaluated lecturers
         const hasAllAnswers = requiredQuestions.every((q: any) => answers.value[course.id]?.[l.id]?.[q.id])
         if (!hasAllAnswers) isValid = false
       })
@@ -71,6 +74,23 @@ const isStep2Valid = computed(() => {
 })
 
 // Lifecycle
+const appStateKey = computed(() => `survey_app_state_${instrumentId}`)
+
+const saveAppState = () => {
+  if (isRestoring.value || step.value === 1 && !selectedProdiId.value) return
+  localStorage.setItem(appStateKey.value, JSON.stringify({
+    step: step.value,
+    selectedProdiId: selectedProdiId.value,
+    selectedClassId: selectedClassId.value,
+    selectedStudentId: selectedStudentId.value,
+    studentSearchQuery: studentSearchQuery.value
+  }))
+}
+
+watch([step, selectedProdiId, selectedClassId, selectedStudentId, studentSearchQuery], () => {
+  saveAppState()
+}, { deep: true })
+
 onMounted(async () => {
   try {
     const res = await api.get(`/public-surveys/${instrumentId}`)
@@ -79,6 +99,60 @@ onMounted(async () => {
     // Fetch prodis
     const prodiRes = await api.get(`/public-surveys/${instrumentId}/study-programs`)
     studyPrograms.value = prodiRes.data
+
+    // Restore state if valid
+    const saved = localStorage.getItem(appStateKey.value)
+    if (saved) {
+      try {
+        const state = JSON.parse(saved)
+        if (state.step > 1 && state.selectedProdiId && state.selectedClassId && state.selectedStudentId) {
+          isRestoring.value = true
+          
+          selectedProdiId.value = state.selectedProdiId
+          selectedClassId.value = state.selectedClassId
+          selectedStudentId.value = state.selectedStudentId
+          studentSearchQuery.value = state.studentSearchQuery
+          step.value = state.step
+          
+          // Fetch data concurrently
+          const [classesRes, studentsRes, coursesRes] = await Promise.all([
+            api.get(`/public-surveys/${instrumentId}/classes/${state.selectedProdiId}`),
+            api.get(`/public-surveys/class-students/${state.selectedClassId}`),
+            api.get(`/public-surveys/${instrumentId}/student-courses/${state.selectedClassId}/${state.selectedStudentId}`)
+          ])
+          
+          classes.value = classesRes.data
+          students.value = studentsRes.data
+          studentCourses.value = coursesRes.data
+          
+          // Answers are restored via storageKey logic in proceedToStep2, but we must do it here too since we're bypassing proceedToStep2
+          const storageKeyVal = `survey_answers_${instrumentId}_${state.selectedStudentId}`
+          const savedAnswersStr = localStorage.getItem(storageKeyVal)
+          if (savedAnswersStr) {
+            answers.value = JSON.parse(savedAnswersStr)
+          } else {
+            answers.value = {}
+          }
+          
+          studentCourses.value.forEach((course: any) => {
+            if(collapsedCourses.value[course.id] === undefined) collapsedCourses.value[course.id] = false
+            if(sidebarExpanded.value[course.id] === undefined) sidebarExpanded.value[course.id] = true
+            if (!answers.value[course.id]) answers.value[course.id] = {}
+            if (course.lecturers) {
+              course.lecturers.forEach((l: any) => {
+                if (!answers.value[course.id]![l.id]) answers.value[course.id]![l.id] = {}
+              })
+            }
+          })
+          
+          setTimeout(() => { isRestoring.value = false }, 100)
+        }
+      } catch (e) {
+        console.error('Failed to restore app state', e)
+        localStorage.removeItem(appStateKey.value)
+        isRestoring.value = false
+      }
+    }
   } catch (e: any) {
     errorMsg.value = e.response?.data?.message || 'Survei tidak ditemukan atau sudah ditutup.'
   } finally {
@@ -88,32 +162,38 @@ onMounted(async () => {
 
 // Watchers
 watch(selectedProdiId, async (newVal) => {
-  selectedClassId.value = ''
-  selectedStudentId.value = ''
-  studentSearchQuery.value = ''
-  classes.value = []
-  students.value = []
+  if (!isRestoring.value) {
+    selectedClassId.value = ''
+    selectedStudentId.value = ''
+    studentSearchQuery.value = ''
+    classes.value = []
+    students.value = []
+  }
   
-  if (newVal) {
+  if (newVal && !isRestoring.value) {
     const res = await api.get(`/public-surveys/${instrumentId}/classes/${newVal}`)
     classes.value = res.data
   }
 })
 
 watch(selectedClassId, async (newVal) => {
-  selectedStudentId.value = ''
-  studentSearchQuery.value = ''
-  students.value = []
+  if (!isRestoring.value) {
+    selectedStudentId.value = ''
+    studentSearchQuery.value = ''
+    students.value = []
+  }
   
-  if (newVal) {
+  if (newVal && !isRestoring.value) {
     const res = await api.get(`/public-surveys/class-students/${newVal}`)
     students.value = res.data
   }
 })
 
 watch(selectedStudentId, () => {
-  studentCourses.value = []
-  answers.value = {}
+  if (!isRestoring.value) {
+    studentCourses.value = []
+    answers.value = {}
+  }
 })
 
 // Auto-save logic
@@ -133,11 +213,16 @@ const getCourseCompletionStatus = (courseId: number) => {
   if (!course || !course.lecturers || course.lecturers.length === 0) return true // Treat empty courses as completed
   
   return course.lecturers.every((l: any) => {
+    if (l.isEvaluated) return true
     return requiredQuestions.every((q: any) => !!answers.value[courseId]?.[l.id]?.[q.id])
   })
 }
 
 const getLecturerCompletionStatus = (courseId: number, lecturerId: number) => {
+  const course = studentCourses.value.find(c => c.id === courseId)
+  const lecturer = course?.lecturers?.find((l: any) => l.id === lecturerId)
+  if (lecturer?.isEvaluated) return true
+
   if (!instrument.value?.questions) return false
   const requiredQuestions = instrument.value.questions.filter((q: any) => q.isRequired)
   return requiredQuestions.every((q: any) => !!answers.value[courseId]?.[lecturerId]?.[q.id])
@@ -189,6 +274,7 @@ const selectStudent = (student: any) => {
   selectedStudentId.value = student.id
   studentSearchQuery.value = student.displayName
   showDropdown.value = false
+  submissionAttempted.value = false
 }
 
 const handleBlur = () => {
@@ -219,6 +305,8 @@ const scrollToLecturer = (courseId: number, lecturerId: number) => {
 
 const proceedToStep2 = async () => {
   if (!isStep1Valid.value) return
+  
+  submissionAttempted.value = false
   
   try {
     loading.value = true
@@ -273,6 +361,7 @@ const submitSurvey = async () => {
   submissionAttempted.value = true
   if (!isStep2Valid.value) {
     toast.error('Mohon isi semua pertanyaan yang wajib untuk SELURUH Dosen di seluruh Matakuliah.')
+    scrollToTop()
     return
   }
 
@@ -305,6 +394,7 @@ const submitSurvey = async () => {
     
     // Clear autosave data on success
     localStorage.removeItem(storageKey.value)
+    localStorage.removeItem(appStateKey.value)
     
     submitted.value = true
     scrollToTop()
@@ -353,7 +443,7 @@ const submitSurvey = async () => {
         <p class="text-gray-600 text-lg mb-8 max-w-md mx-auto">Evaluasi Anda telah berhasil disimpan dan sangat berarti bagi peningkatan kualitas pembelajaran.</p>
         
         <div class="flex flex-col sm:flex-row gap-3 justify-center">
-          <button @click="() => { submitted = false; step = 1; selectedStudentId = ''; studentSearchQuery = ''; answers = {}; }" class="px-6 py-3 bg-white border-2 border-indigo-100 text-indigo-700 font-semibold rounded-xl hover:bg-indigo-50 transition-colors">
+          <button @click="() => { submitted = false; submissionAttempted = false; step = 1; selectedStudentId = ''; studentSearchQuery = ''; answers = {}; }" class="px-6 py-3 bg-white border-2 border-indigo-100 text-indigo-700 font-semibold rounded-xl hover:bg-indigo-50 transition-colors">
             Pilih Mahasiswa Lain
           </button>
           <a v-if="instrument.redirectUrl" :href="instrument.redirectUrl" class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-blue-700 shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2">
@@ -394,7 +484,7 @@ const submitSurvey = async () => {
         <div class="pt-6"></div>
 
         <!-- Step 1: Identification -->
-        <div v-show="step === 1" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div v-show="step === 1" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 mb-32">
           <div class="p-6 sm:p-8 space-y-6">
             <div class="flex items-center gap-3 mb-2">
               <div class="p-2 bg-indigo-50 rounded-lg text-indigo-600">
@@ -506,7 +596,7 @@ const submitSurvey = async () => {
                 Sistem mendeteksi bahwa Anda telah menyelesaikan seluruh evaluasi dosen pada instrumen ini. Tidak ada lagi matakuliah yang perlu dievaluasi.
               </p>
               <div class="pt-4">
-                <button @click="step = 1; selectedStudentId = ''; studentSearchQuery = ''" class="px-6 py-2.5 bg-white border-2 border-emerald-100 text-emerald-700 font-semibold rounded-xl hover:bg-emerald-50 transition-colors inline-flex items-center gap-2">
+                <button @click="step = 1; submissionAttempted = false; selectedStudentId = ''; studentSearchQuery = ''" class="px-6 py-2.5 bg-white border-2 border-emerald-100 text-emerald-700 font-semibold rounded-xl hover:bg-emerald-50 transition-colors inline-flex items-center gap-2">
                   Kembali ke Identifikasi
                 </button>
               </div>
@@ -518,9 +608,13 @@ const submitSurvey = async () => {
                 <div class="pl-4 sm:pl-8 space-y-2">
                   <template v-if="course.lecturers && course.lecturers.length > 0">
                     <div v-for="lecturer in course.lecturers" :key="lecturer.id" class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-sm text-gray-600 bg-white p-3 rounded-xl border border-gray-100 shadow-sm relative overflow-hidden">
-                      <div class="absolute left-0 top-0 bottom-0 w-1 bg-amber-400"></div>
+                      <div class="absolute left-0 top-0 bottom-0 w-1 transition-colors" :class="lecturer.isEvaluated ? 'bg-emerald-500' : 'bg-amber-400'"></div>
                       <span class="font-medium text-gray-800 text-sm sm:text-base ml-2">{{ lecturer.frontTitle ? lecturer.frontTitle + ' ' : '' }}{{ lecturer.name }}{{ lecturer.backTitle ? ', ' + lecturer.backTitle : '' }}</span>
-                      <span class="ml-auto flex items-center gap-1.5 text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md border border-amber-100">
+                      
+                      <span v-if="lecturer.isEvaluated" class="ml-auto flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">
+                        <CheckCircle2 class="w-3.5 h-3.5" /> Sudah Dinilai
+                      </span>
+                      <span v-else class="ml-auto flex items-center gap-1.5 text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md border border-amber-100">
                         Belum Dinilai
                       </span>
                     </div>
@@ -680,7 +774,14 @@ const submitSurvey = async () => {
                   </div>
 
                   <!-- Questions Container for this Dosen -->
-                  <div class="bg-white border border-indigo-100 rounded-b-xl shadow-sm p-4 sm:p-8 pt-6 space-y-6">
+                  <div v-if="lecturer.isEvaluated" class="bg-emerald-50 border border-emerald-100 rounded-b-xl shadow-inner p-8 text-center">
+                    <div class="w-12 h-12 bg-white text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
+                      <CheckCircle2 class="w-6 h-6" />
+                    </div>
+                    <p class="font-bold text-emerald-800 text-lg mb-1">Sudah Dievaluasi</p>
+                    <p class="text-emerald-600 text-sm max-w-sm mx-auto">Anda telah mengirimkan penilaian untuk dosen ini.</p>
+                  </div>
+                  <div v-else class="bg-white border border-indigo-100 rounded-b-xl shadow-sm p-4 sm:p-8 pt-6 space-y-6">
                     <div 
                       v-for="(q, idx) in instrument?.questions" 
                       :key="'c'+course.id+'l'+lecturer.id+'q'+q.id" 
