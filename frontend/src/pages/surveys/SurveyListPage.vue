@@ -5,7 +5,7 @@ import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import api from '@/lib/api'
 import ModalForm from '@/components/ui/ModalForm.vue'
-import { Plus, Edit2, Trash2, Copy, Eye, ClipboardList, Link as LinkIcon } from 'lucide-vue-next'
+import { Plus, Edit2, Trash2, Copy, Eye, ClipboardList, Link as LinkIcon, Settings } from 'lucide-vue-next'
 
 const router = useRouter()
 const toast = useToast()
@@ -195,6 +195,9 @@ onMounted(fetchData)
             </td>
             <td class="px-6 py-4">
               <div class="flex items-center justify-end gap-1">
+                <button @click="openModal('edit', item)" class="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors" title="Pengaturan Instrumen">
+                  <Settings class="w-4 h-4" />
+                </button>
                 <button @click="router.push(`/surveys/${item.id}/builder`)" class="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors" title="Edit Pertanyaan">
                   <Edit2 class="w-4 h-4" />
                 </button>

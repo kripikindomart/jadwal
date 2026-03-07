@@ -66,6 +66,7 @@ const saveInstrumentHeader = async () => {
       title: instrument.value.title,
       description: instrument.value.description,
       redirectUrl: instrument.value.redirectUrl,
+      publicUrlHash: instrument.value.publicUrlHash || undefined,
     })
   } catch (e: any) {
     toast.error('Gagal menyimpan detail instrumen')
@@ -326,19 +327,41 @@ onMounted(fetchInstrument)
           ></textarea>
           
           <!-- Redirect URL feature -->
-          <div v-if="instrument" class="mt-6 flex items-center gap-3 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100/50">
-            <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
-              <Link class="w-4 h-4" />
+          <div v-if="instrument" class="mt-6 flex flex-col gap-4">
+            <div class="flex items-center gap-3 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100/50">
+              <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                <Link class="w-4 h-4" />
+              </div>
+              <div class="flex-1">
+                <label class="text-xs font-bold text-indigo-900 uppercase tracking-wider mb-1 block">Link Redirect (Opsional)</label>
+                <input 
+                  v-model="instrument.redirectUrl" 
+                  class="w-full text-sm text-gray-900 font-medium bg-transparent border-b border-indigo-200 hover:border-indigo-400 focus:border-indigo-600 focus:outline-none transition-colors pb-1 placeholder-indigo-400" 
+                  placeholder="Misal: https://web.kampus.ac.id/thanks (Diakses pengguna setelah submit)"
+                  @blur="saveInstrumentHeader"
+                />
+              </div>
             </div>
-            <div class="flex-1">
-              <label class="text-xs font-bold text-indigo-900 uppercase tracking-wider mb-1 block">Link Redirect (Opsional)</label>
-              <input 
-                v-if="instrument"
-                v-model="instrument.redirectUrl" 
-                class="w-full text-sm text-gray-900 font-medium bg-transparent border-b border-indigo-200 hover:border-indigo-400 focus:border-indigo-600 focus:outline-none transition-colors pb-1 placeholder-indigo-400" 
-                placeholder="Misal: https://web.kampus.ac.id/thanks (Diakses pengguna setelah submit)"
-                @blur="saveInstrumentHeader"
-              />
+
+            <!-- Custom Link URL feature -->
+            <div class="flex items-center gap-3 bg-purple-50/50 p-4 rounded-xl border border-purple-100/50">
+              <div class="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+                <Link class="w-4 h-4" />
+              </div>
+              <div class="flex-1">
+                <label class="text-xs font-bold text-purple-900 uppercase tracking-wider mb-1 block">Custom URL Survei Publik (Opsional)</label>
+                <div class="flex items-center text-sm">
+                  <span class="text-purple-400 font-medium whitespace-nowrap hidden sm:inline">survei.ppsuika.ac.id/survey/s/</span>
+                  <input 
+                    v-model="instrument.publicUrlHash" 
+                    class="w-full text-sm text-gray-900 font-medium bg-transparent border-b border-purple-200 hover:border-purple-400 focus:border-purple-600 focus:outline-none transition-colors pb-1 placeholder-purple-400" 
+                    placeholder="Misal: evaluasi-ganjil-2025"
+                    pattern="[a-zA-Z0-9_-]+"
+                    title="Hanya huruf, angka, pemisah (-)"
+                    @blur="saveInstrumentHeader"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
