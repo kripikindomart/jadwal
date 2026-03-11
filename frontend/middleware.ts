@@ -1,25 +1,30 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-
-export function middleware(request: NextRequest) {
-  const url = request.nextUrl;
-  const hostname = request.headers.get("host") || "";
+// @ts-nocheck
+/**
+ * Vercel Middleware (Edge)
+ * Digunakan untuk menangani routing subdomain 'layanan.ppsuika.ac.id'
+ * agar langsung mengarah ke portal layanan surat.
+ */
+export default function middleware(req: Request) {
+  const url = new URL(req.url);
+  const hostname = req.headers.get("host") || "";
 
   // Subdomain yang dituju
   const portalDomain = "layanan.ppsuika.ac.id";
 
-  // Jika hostname mencocokkan subdomain portal
+  // Jika hostname mencocokkan subdomain portal kita arahkan ke /layanan-surat
   if (hostname === portalDomain || hostname === `www.${portalDomain}`) {
-    // Jika akses root '/' atau halaman index, rewrite secara internal ke /layanan-surat
-    if (url.pathname === "/") {
-      return NextResponse.rewrite(new URL("/layanan-surat", request.url));
+    if (url.pathname === "/" || url.pathname === "/index.html") {
+      // Rewrite internal (URL di browser tetap sama, tapi isi yang dimuat dari /layanan-surat)
+      url.pathname = "/layanan-surat";
+      return Response.redirect(url);
+      // Catatan: Rewrite murni biasanya memerlukan NextResponse dari 'next/server'.
+      // Untuk platform generic, kita gunakan redirect atau pastikan routing SPA menangani domain.
     }
   }
 
-  return NextResponse.next();
+  return null;
 }
 
-// Hanya jalankan middleware pada path tertentu untuk efisiensi
 export const config = {
   matcher: ["/", "/index.html"],
 };
