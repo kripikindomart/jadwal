@@ -58,7 +58,7 @@ const compiledHTML = computed(() => {
 
   // Render Kop Surat (Header) at the very top if exists
   if (templateObj.headerImageUrl) {
-    const headerHtml = `<div style="margin-bottom: 2rem; text-align: center;"><img src="${templateObj.headerImageUrl}" alt="Kop Surat" style="max-width: 100%; height: auto;" /></div>`
+    const headerHtml = `<div style="margin-bottom: 1rem; text-align: center;"><img src="${templateObj.headerImageUrl}" alt="Kop Surat" style="max-width: 100%; height: auto;" /></div>`
     templateText = headerHtml + templateText
   }
 
@@ -219,7 +219,7 @@ body, html {
   background: white;
   width: 21cm;
   min-height: 29.7cm;
-  padding: 2cm;
+  padding: 1cm 1.5cm;
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
   box-sizing: border-box;
 }
@@ -281,7 +281,7 @@ body, html {
     width: 100%;
     margin: 0;
     /* Use exact padding for print */
-    padding: 2cm;
+    padding: 1cm 1.5cm;
   }
   
   .no-print {
