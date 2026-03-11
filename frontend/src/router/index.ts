@@ -278,7 +278,13 @@ const router = createRouter({
     // Catch all
     {
       path: "/:pathMatch(.*)*",
-      redirect: "/",
+      redirect: () => {
+        if (import.meta.env.VITE_IS_SURVEY_PORTAL === "true")
+          return "/survey-portal";
+        if (import.meta.env.VITE_IS_LETTER_PORTAL === "true")
+          return "/layanan-surat";
+        return "/";
+      },
     },
   ],
 });
@@ -286,10 +292,21 @@ const router = createRouter({
 // Navigation guard
 router.beforeEach(async (to, _from, next) => {
   const isSurveyPortal = import.meta.env.VITE_IS_SURVEY_PORTAL === "true";
+  const isLetterPortal = import.meta.env.VITE_IS_LETTER_PORTAL === "true";
 
-  // If we are on the dedicated survey portal, block all non-public routes
+  // If we are on the dedicated portals, block all non-public routes
   if (isSurveyPortal && !to.meta.public) {
     return next({ name: "survey.portal.home" });
+  }
+
+  if (isLetterPortal && !to.meta.public) {
+    return next({ name: "letters.public.list" });
+  }
+
+  // Handle root access redirection for portals
+  if (to.path === "/") {
+    if (isSurveyPortal) return next({ name: "survey.portal.home" });
+    if (isLetterPortal) return next({ name: "letters.public.list" });
   }
 
   const authStore = useAuthStore();
