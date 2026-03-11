@@ -85,7 +85,7 @@ const editorInit = {
     ${contentUiCss}
     
     body { font-family:Helvetica,Arial,sans-serif; font-size:14px; padding: 1cm 1.5cm; min-height: 800px; }
-    table { width: 100%; border-collapse: collapse; margin-left: auto; margin-right: auto; }
+    table { width: 100%; border-collapse: collapse; }
     table td, table th { border: 1px solid #ccc; padding: 8px; position: relative; }
     td, th { min-width: 30px; }
     .mce-resize-bar-row { cursor: row-resize !important; }
@@ -109,7 +109,7 @@ const editorInit = {
 const insertTable = () => {
   if (!activeEditorInstance) return
   const tableHtml = `
-    <table style="width:100%; border-collapse:collapse; margin:12px 0;">
+    <table style="width:100%; border-collapse:collapse; margin:12px auto;">
       <tbody>
         <tr><td style="border:1px solid #999; padding:6px 10px;">&nbsp;</td><td style="border:1px solid #999; padding:6px 10px;">&nbsp;</td><td style="border:1px solid #999; padding:6px 10px;">&nbsp;</td></tr>
         <tr><td style="border:1px solid #999; padding:6px 10px;">&nbsp;</td><td style="border:1px solid #999; padding:6px 10px;">&nbsp;</td><td style="border:1px solid #999; padding:6px 10px;">&nbsp;</td></tr>
@@ -122,7 +122,7 @@ const insertTable = () => {
 const insertTableBorderless = () => {
   if (!activeEditorInstance) return
   const tableHtml = `
-    <table style="width:100%; border-collapse:collapse; margin:12px 0; border: none;">
+    <table style="width:100%; border-collapse:collapse; margin:12px auto; border: none;">
       <tbody>
         <tr><td style="padding:4px 8px; width:30%; border:none;">Nama</td><td style="padding:4px 8px; width:3%; border:none;">:</td><td style="padding:4px 8px; border:none;">[nama]</td></tr>
         <tr><td style="padding:4px 8px; border:none;">NIM</td><td style="padding:4px 8px; border:none;">:</td><td style="padding:4px 8px; border:none;">[nim]</td></tr>
