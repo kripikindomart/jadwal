@@ -119,6 +119,16 @@ export class PublicLettersController {
       process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_ANON_KEY || '';
     const bucket = (process.env.SUPABASE_BUCKET || 'uploads').trim();
 
+    console.log('--- UPLOAD DEBUG ---');
+    console.log('SUPABASE_URL:', supabaseUrl);
+    console.log(
+      'SUPABASE_SERVICE_ROLE exists:',
+      !!process.env.SUPABASE_SERVICE_ROLE,
+    );
+    console.log('SUPABASE_ANON_KEY exists:', !!process.env.SUPABASE_ANON_KEY);
+    console.log('supabaseKey length:', supabaseKey.length);
+    console.log('bucket:', bucket);
+
     if (!supabaseKey) {
       throw new BadRequestException(
         'Supabase URL atau Key belum dikonfigurasi di backend.',
