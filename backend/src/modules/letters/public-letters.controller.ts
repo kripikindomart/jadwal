@@ -14,8 +14,6 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { S3Client } from '@aws-sdk/client-s3';
 import multerS3 from 'multer-s3';
-import * as dotenv from 'dotenv';
-dotenv.config();
 import { extname } from 'path';
 import * as fs from 'fs';
 import { LettersService } from './letters.service';
@@ -33,13 +31,14 @@ if (!fs.existsSync(uploadDir)) {
 
 const s3Config = new S3Client({
   forcePathStyle: true,
-  region: process.env.SUPABASE_S3_REGION || 'ap-northeast-1',
-  endpoint:
+  region: (process.env.SUPABASE_S3_REGION || 'ap-northeast-1').trim(),
+  endpoint: (
     process.env.SUPABASE_S3_ENDPOINT ||
-    'https://thhtumfgfrcjuznfgmoy.storage.supabase.co/storage/v1/s3',
+    'https://thhtumfgfrcjuznfgmoy.storage.supabase.co/storage/v1/s3'
+  ).trim(),
   credentials: {
-    accessKeyId: process.env.SUPABASE_S3_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.SUPABASE_S3_SECRET_ACCESS_KEY || '',
+    accessKeyId: (process.env.SUPABASE_S3_ACCESS_KEY_ID || '').trim(),
+    secretAccessKey: (process.env.SUPABASE_S3_SECRET_ACCESS_KEY || '').trim(),
   },
 });
 
@@ -98,7 +97,7 @@ export class PublicLettersController {
     FileInterceptor('file', {
       storage: multerS3({
         s3: s3Config,
-        bucket: process.env.SUPABASE_S3_BUCKET || 'uploads',
+        bucket: (process.env.SUPABASE_S3_BUCKET || 'uploads').trim(),
         acl: 'public-read',
         contentType: multerS3.AUTO_CONTENT_TYPE,
         key: function (req: any, file: any, cb: any) {
