@@ -23,3 +23,8 @@ export { SurveyInstrument } from './survey-instrument.entity';
 export { SurveyQuestion } from './survey-question.entity';
 export { SurveyResponse } from './survey-response.entity';
 export { SurveyAnswer } from './survey-answer.entity';
+export { LetterType } from './letter-type.entity';
+export { LetterRequest } from './letter-request.entity';
+export { Curriculum } from './curriculum.entity';
+export { CurriculumCourse } from './curriculum-course.entity';
+export { Concentration } from './concentration.entity';

@@ -53,6 +53,7 @@ export class StudentsService {
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.studentProfile', 'profile')
       .leftJoinAndSelect('profile.prodi', 'prodi')
+      .leftJoinAndSelect('profile.concentration', 'concentration')
       .leftJoinAndSelect('user.roles', 'role')
       .where('role.slug = :roleSlug', { roleSlug: 'mahasiswa' });
 
@@ -105,7 +106,12 @@ export class StudentsService {
   async findOne(id: number) {
     const user = await this.userRepo.findOne({
       where: { id },
-      relations: ['studentProfile', 'studentProfile.prodi', 'roles'],
+      relations: [
+        'studentProfile',
+        'studentProfile.prodi',
+        'studentProfile.concentration',
+        'roles',
+      ],
     });
     if (!user) throw new Error('Mahasiswa tidak ditemukan');
     return this.formatStudent(user);
@@ -119,6 +125,7 @@ export class StudentsService {
     prodiId: number;
     angkatan: string;
     status?: string;
+    concentrationId?: number;
   }) {
     const hashedPassword = await bcrypt.hash(dto.password || '12345678', 10);
     const user = this.userRepo.create({
@@ -142,6 +149,7 @@ export class StudentsService {
       prodiId: dto.prodiId,
       angkatan: dto.angkatan,
       status: dto.status || 'aktif',
+      concentrationId: dto.concentrationId,
     });
     await this.profileRepo.save(profile);
 
@@ -157,6 +165,7 @@ export class StudentsService {
       prodiId?: number;
       angkatan?: string;
       status?: string;
+      concentrationId?: number;
     },
   ) {
     const user = await this.userRepo.findOne({
@@ -182,6 +191,8 @@ export class StudentsService {
     if (dto.prodiId !== undefined) profile.prodiId = dto.prodiId;
     if (dto.angkatan !== undefined) profile.angkatan = dto.angkatan;
     if (dto.status !== undefined) profile.status = dto.status;
+    if (dto.concentrationId !== undefined)
+      profile.concentrationId = dto.concentrationId;
     await this.profileRepo.save(profile);
 
     return this.findOne(id);
@@ -342,6 +353,8 @@ export class StudentsService {
       status: profile?.status || null,
       prodiId: profile?.prodiId || null,
       prodi: profile?.prodi || null,
+      concentrationId: profile?.concentrationId || null,
+      concentration: profile?.concentration || null,
       createdAt: user.createdAt,
       deletedAt: user.deletedAt,
     };

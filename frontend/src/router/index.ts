@@ -84,6 +84,24 @@ const router = createRouter({
       meta: { layout: "admin" },
     },
     {
+      path: "/admin/academic/curriculums",
+      name: "curriculums",
+      component: () => import("@/pages/academic/CurriculumListPage.vue"),
+      meta: { layout: "admin" },
+    },
+    {
+      path: "/admin/academic/curriculums/:id",
+      name: "curriculums.edit",
+      component: () => import("@/pages/academic/CurriculumEditorPage.vue"),
+      meta: { layout: "admin" },
+    },
+    {
+      path: "/admin/academic/concentrations",
+      name: "concentrations",
+      component: () => import("@/pages/academic/ConcentrationPage.vue"),
+      meta: { layout: "admin" },
+    },
+    {
       path: "/rooms",
       name: "rooms",
       component: () => import("@/pages/academic/RoomPage.vue"),
@@ -192,6 +210,71 @@ const router = createRouter({
       component: () => import("@/pages/surveys/SurveyPortalHome.vue"),
       meta: { public: true, layout: "blank" },
     },
+
+    // Letters / Surat Menyurat
+    {
+      path: "/letters",
+      name: "letters.types",
+      component: () => import("@/pages/letters/LetterTypesPage.vue"),
+      meta: { layout: "admin" },
+    },
+    {
+      path: "/letters/requests",
+      name: "letters.requests",
+      component: () => import("@/pages/letters/LetterRequestsPage.vue"),
+      meta: { layout: "admin" },
+    },
+    {
+      path: "/letters/pins",
+      name: "letters.pins",
+      component: () => import("@/pages/letters/StudentPinManagementPage.vue"),
+      meta: { layout: "admin" },
+    },
+    {
+      path: "/letters/templates",
+      name: "letters.templates",
+      component: () => import("@/pages/letters/LetterTemplatesPage.vue"),
+      meta: { layout: "admin" },
+    },
+    {
+      path: "/letters/templates/:id/edit",
+      name: "letters.templates.editor",
+      component: () => import("@/pages/letters/TemplateEditorPage.vue"),
+      meta: { layout: "admin" },
+    },
+    {
+      path: "/letters/:id/builder",
+      name: "letters.builder",
+      component: () => import("@/pages/letters/LetterFormBuilderPage.vue"),
+      meta: { layout: "admin" },
+    },
+    {
+      path: "/letters/:id/print",
+      name: "letters.print",
+      component: () => import("@/pages/letters/LetterPrintPage.vue"),
+      meta: { layout: "blank" },
+    },
+
+    // Public Letters (Mahasiswa)
+    {
+      path: "/layanan-surat",
+      name: "letters.public.list",
+      component: () => import("@/pages/letters/PublicLetterListPage.vue"),
+      meta: { public: true, layout: "blank" },
+    },
+    {
+      path: "/layanan-surat/:id/form",
+      name: "letters.public.form",
+      component: () => import("@/pages/letters/PublicLetterFormPage.vue"),
+      meta: { public: true, layout: "blank" },
+    },
+    {
+      path: "/layanan-surat/track/:ticket",
+      name: "letters.public.track",
+      component: () => import("@/pages/letters/PublicLetterTrackPage.vue"),
+      meta: { public: true, layout: "blank" },
+    },
+
     // Catch all
     {
       path: "/:pathMatch(.*)*",

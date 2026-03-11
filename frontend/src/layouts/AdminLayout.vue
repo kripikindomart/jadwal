@@ -20,6 +20,7 @@ import {
   Shield,
   Key,
   ClipboardList,
+  Mail,
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -47,6 +48,8 @@ const menuItems = computed(() => {
   const akademikChildren = []
   if (authStore.hasPermission('semesters.view')) akademikChildren.push({ label: 'Periode Akademik', to: '/semesters', icon: Calendar })
   if (authStore.hasPermission('prodis.view')) akademikChildren.push({ label: 'Program Studi', to: '/prodis', icon: GraduationCap })
+  if (authStore.hasPermission('concentrations.view')) akademikChildren.push({ label: 'Konsentrasi', to: '/admin/academic/concentrations', icon: GraduationCap })
+  if (authStore.hasPermission('curriculums.view')) akademikChildren.push({ label: 'Manajemen Kurikulum', to: '/admin/academic/curriculums', icon: LayoutDashboard })
   if (authStore.hasPermission('courses.view')) akademikChildren.push({ label: 'Mata Kuliah', to: '/courses', icon: GraduationCap })
   if (authStore.hasPermission('rooms.view')) akademikChildren.push({ label: 'Ruang Kelas', to: '/rooms', icon: LayoutDashboard })
   if (authStore.hasPermission('timeslots.view')) akademikChildren.push({ label: 'Slot Waktu', to: '/timeslots', icon: Clock })
@@ -85,6 +88,21 @@ const menuItems = computed(() => {
       label: 'EDOM / Survei',
       icon: ClipboardList,
       children: edomChildren
+    })
+  }
+
+  // Layanan Surat
+  const letterChildren: any[] = []
+  letterChildren.push({ label: 'Jenis Surat', to: '/letters', icon: Mail })
+  letterChildren.push({ label: 'Template Surat', to: '/letters/templates', icon: Mail })
+  letterChildren.push({ label: 'Inbox Pengajuan', to: '/letters/requests', icon: Mail })
+  letterChildren.push({ label: 'Manajemen PIN', to: '/letters/pins', icon: Key })
+
+  if (letterChildren.length > 0) {
+    items.push({
+      label: 'Layanan Surat',
+      icon: Mail,
+      children: letterChildren
     })
   }
 

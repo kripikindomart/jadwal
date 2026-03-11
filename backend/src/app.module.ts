@@ -10,7 +10,9 @@ import { LecturersModule } from './modules/lecturers/lecturers.module';
 import { StudentsModule } from './modules/students/students.module';
 import { ClassesModule } from './modules/classes/classes.module';
 import { SurveysModule } from './modules/surveys/surveys.module';
-
+import { LettersModule } from './modules/letters/letters.module';
+import { CurriculumsModule } from './modules/curriculums/curriculums.module';
+import { ConcentrationsModule } from './modules/concentrations/concentrations.module';
 @Module({
   imports: [
     // Global config
@@ -40,6 +42,9 @@ import { SurveysModule } from './modules/surveys/surveys.module';
     StudentsModule,
     ClassesModule,
     SurveysModule,
+    LettersModule,
+    CurriculumsModule,
+    ConcentrationsModule,
   ],
 })
 export class AppModule {}

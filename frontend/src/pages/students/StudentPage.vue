@@ -17,6 +17,7 @@ const confirm = useConfirm()
 const items = ref<any[]>([])
 const prodis = ref<any[]>([])
 const semesters = ref<any[]>([])
+const concentrations = ref<any[]>([])
 const loading = ref(false)
 const total = ref(0)
 const page = ref(1)
@@ -30,6 +31,13 @@ import { computed } from 'vue'
 const prodiOptions = computed(() => prodis.value.map(p => ({ value: p.id, label: `${p.degree} ${p.name}` })))
 const semesterOptions = computed(() => semesters.value.map(s => ({ value: s.code, label: `${s.code} — ${s.name} (${s.type})` })))
 const filterSemesterOptions = computed(() => semesters.value.map(s => ({ value: s.code, label: `${s.name} (${s.type})` })))
+
+const concentrationOptions = computed(() => {
+  if (!form.value.prodiId) return []
+  return concentrations.value
+    .filter(c => c.prodiId === +form.value.prodiId && c.isActive)
+    .map(c => ({ value: c.id, label: `${c.code ? c.code + ' - ' : ''}${c.name}` }))
+})
 
 const sortKey = ref('name')
 const sortOrder = ref<'asc' | 'desc'>('asc')
@@ -50,6 +58,7 @@ const columns: Column[] = [
   { key: 'name', label: 'Mahasiswa', sortable: true },
   { key: 'contact', label: 'Kontak' },
   { key: 'prodi', label: 'Program Studi' },
+  { key: 'concentration', label: 'Konsentrasi' },
   { key: 'angkatan', label: 'Angkatan', align: 'center' },
   { key: 'status', label: 'Status', align: 'center' },
 ]
@@ -64,12 +73,13 @@ const form = ref({
   phone: '',
   nim: '',
   prodiId: '' as string | number,
+  concentrationId: '' as string | number,
   angkatan: '' as string | number,
   status: 'aktif',
 })
 
 function resetForm() {
-  form.value = { name: '', email: '', phone: '', nim: '', prodiId: '', angkatan: '', status: 'aktif' }
+  form.value = { name: '', email: '', phone: '', nim: '', prodiId: '', concentrationId: '', angkatan: '', status: 'aktif' }
   editingId.value = null
 }
 
@@ -119,11 +129,19 @@ async function fetchSemesters() {
   } catch { /* silent */ }
 }
 
+async function fetchConcentrations() {
+  try {
+    const { data } = await api.get('/concentrations?perPage=200')
+    concentrations.value = data.data
+  } catch { /* silent */ }
+}
+
 onMounted(() => {
   fetchData()
   fetchStats()
   fetchProdis()
   fetchSemesters()
+  fetchConcentrations()
 })
 
 watch(statusTab, () => fetchData(1))
@@ -169,6 +187,7 @@ async function openEdit(item: any) {
     phone: item.phone || '',
     nim: item.nim || '',
     prodiId: item.prodiId || '',
+    concentrationId: item.concentrationId || '',
     angkatan: item.angkatan || '',
     status: item.status || 'aktif',
   }
@@ -181,6 +200,7 @@ async function handleSubmit() {
     const payload = {
       ...form.value,
       prodiId: form.value.prodiId ? +form.value.prodiId : undefined,
+      concentrationId: form.value.concentrationId ? +form.value.concentrationId : undefined,
       angkatan: form.value.angkatan || undefined,
     }
     if (editingId.value) {
@@ -413,6 +433,12 @@ function semesterType(code: any) {
         </span>
         <span v-else class="text-slate-400 text-xs">—</span>
       </template>
+      <template #cell(concentration)="{ item }">
+        <span v-if="item.concentration" class="text-xs font-semibold text-slate-700">
+          {{ item.concentration.name }}
+        </span>
+        <span v-else class="text-slate-400 text-xs">—</span>
+      </template>
       <template #cell(angkatan)="{ item }">
         <div class="flex flex-col items-center">
           <span class="text-sm font-semibold text-slate-800">{{ semesterName(item.angkatan) }}</span>
@@ -512,6 +538,7 @@ function semesterType(code: any) {
             :options="prodiOptions"
             placeholder="— Pilih Prodi —"
             required
+            @change="form.concentrationId = ''"
           />
         </div>
         <div>
@@ -523,6 +550,15 @@ function semesterType(code: any) {
             required
           />
         </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Konsentrasi (Opsional)</label>
+        <SearchableSelect
+          v-model="form.concentrationId"
+          :options="concentrationOptions"
+          placeholder="— Pilih Konsentrasi —"
+          :disabled="!form.prodiId || concentrationOptions.length === 0"
+        />
       </div>
       <div>
         <label class="block text-sm font-medium text-slate-700 mb-1">Status</label>
