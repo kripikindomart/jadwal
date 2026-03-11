@@ -85,7 +85,7 @@ const editorInit = {
     ${contentUiCss}
     
     body { font-family:Helvetica,Arial,sans-serif; font-size:14px; padding: 1cm 1.5cm; min-height: 800px; }
-    table { width: 100%; border-collapse: collapse; }
+    table { width: 100%; border-collapse: collapse; margin-left: auto; margin-right: auto; }
     table td, table th { border: 1px solid #ccc; padding: 8px; position: relative; }
     td, th { min-width: 30px; }
     .mce-resize-bar-row { cursor: row-resize !important; }

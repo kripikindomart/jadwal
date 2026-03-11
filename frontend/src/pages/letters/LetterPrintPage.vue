@@ -159,6 +159,8 @@ const compiledHTML = computed(() => {
           <ol style="margin: 0; padding-left: 18px; font-size: 12px; color: black;">${tembusanLines}</ol>
         </div>`
     }
+
+    templateText += bottomHtml
   }
 
   return templateText
@@ -208,6 +210,17 @@ body, html {
   background-color: #f3f4f6;
 }
 
+.print-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+}
+.print-content table td, .print-content table th {
+  border: 1px solid #ccc;
+  padding: 8px;
+}
+
 .print-container {
   display: flex;
   flex-direction: column;
@@ -220,7 +233,7 @@ body, html {
   background: white;
   width: 21cm;
   min-height: 29.7cm;
-  padding: 1cm 1.5cm;
+  padding: 0.5cm 1cm;
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
   box-sizing: border-box;
 }
@@ -282,7 +295,7 @@ body, html {
     width: 100%;
     margin: 0;
     /* Use exact padding for print */
-    padding: 1cm 1.5cm;
+    padding: 0.5cm 1cm;
   }
   
   .no-print {

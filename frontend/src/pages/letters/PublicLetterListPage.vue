@@ -1201,3 +1201,16 @@ const mappedHtmlPreview = computed(() => {
     </div>
   </div>
 </template>
+
+<style>
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+}
+.prose table td, .prose table th {
+  border: 1px solid #ccc;
+  padding: 8px;
+}
+</style>
