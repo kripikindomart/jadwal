@@ -12,8 +12,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { S3Client } from '@aws-sdk/client-s3';
-import multerS3 from 'multer-s3';
+import { memoryStorage } from 'multer';
+import { createClient } from '@supabase/supabase-js';
 import { extname } from 'path';
 import * as fs from 'fs';
 import { LettersService } from './letters.service';
@@ -84,31 +84,7 @@ export class PublicLettersController {
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: multerS3({
-        s3: new S3Client({
-          forcePathStyle: true,
-          region: (process.env.SUPABASE_S3_REGION || 'ap-northeast-1').trim(),
-          endpoint: (
-            process.env.SUPABASE_S3_ENDPOINT ||
-            'https://thhtumfgfrcjuznfgmoy.storage.supabase.co/storage/v1/s3'
-          ).trim(),
-          credentials: {
-            accessKeyId: (process.env.SUPABASE_S3_ACCESS_KEY_ID || '').trim(),
-            secretAccessKey: (
-              process.env.SUPABASE_S3_SECRET_ACCESS_KEY || ''
-            ).trim(),
-          },
-        }),
-        bucket: (process.env.SUPABASE_S3_BUCKET || 'uploads').trim(),
-        acl: 'public-read',
-        contentType: multerS3.AUTO_CONTENT_TYPE,
-        key: function (req: any, file: any, cb: any) {
-          const uniqueSuffix =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname);
-          cb(null, `letters/file-${uniqueSuffix}${ext}`);
-        },
-      }),
+      storage: memoryStorage(),
       limits: {
         fileSize: 10 * 1024 * 1024, // 10MB Default limit
       },
@@ -132,21 +108,47 @@ export class PublicLettersController {
       },
     }),
   )
-  uploadFile(@UploadedFile() file: any) {
+  async uploadFile(@UploadedFile() file: any) {
     if (!file) {
       throw new BadRequestException('File tidak ditemukan.');
     }
 
-    const endpoint =
-      process.env.SUPABASE_S3_ENDPOINT ||
-      'https://thhtumfgfrcjuznfgmoy.storage.supabase.co/storage/v1/s3';
-    const publicEndpoint = endpoint.replace('/s3', '/object/public');
-    const bucket = process.env.SUPABASE_S3_BUCKET || 'uploads';
+    const supabaseUrl =
+      process.env.SUPABASE_URL || 'https://thhtumfgfrcjuznfgmoy.supabase.co';
+    const supabaseKey =
+      process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || '';
+    const bucket = (process.env.SUPABASE_S3_BUCKET || 'uploads').trim();
 
-    const finalUrl = `${publicEndpoint}/${bucket}/${file.key}`;
+    if (!supabaseKey) {
+      throw new BadRequestException(
+        'Supabase URL atau Key belum dikonfigurasi di backend.',
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = extname(file.originalname);
+    const filename = `letters/file-${uniqueSuffix}${ext}`;
+
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(filename, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false,
+      });
+
+    if (error) {
+      console.error('Supabase Upload Error:', error);
+      throw new BadRequestException('Gagal mengunggah file ke cloud storage.');
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(filename);
 
     return {
-      url: finalUrl,
+      url: publicUrlData.publicUrl,
       originalName: file.originalname,
       size: file.size,
     };
