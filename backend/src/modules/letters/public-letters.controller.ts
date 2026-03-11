@@ -15,21 +15,12 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { createClient } from '@supabase/supabase-js';
 import { extname } from 'path';
-import * as fs from 'fs';
 import { LettersService } from './letters.service';
 import {
   SubmitLetterRequestDto,
   UpdateStudentProfileDto,
 } from './dto/letter.dto';
 import { Public } from '../../common/decorators/public.decorator';
-
-// Ensure upload directory exists
-const uploadDir = './uploads/letters';
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// S3 initialization removed from root scope
 
 @Controller('api/public-letters')
 @Public()
@@ -86,7 +77,7 @@ export class PublicLettersController {
     FileInterceptor('file', {
       storage: memoryStorage(),
       limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB Default limit
+        fileSize: 10 * 1024 * 1024, // 10MB
       },
       fileFilter: (req: any, file: any, cb: any) => {
         const allowedTypes = /jpeg|jpg|png|pdf|doc|docx/;
@@ -116,24 +107,10 @@ export class PublicLettersController {
     const supabaseUrl =
       process.env.SUPABASE_URL || 'https://thhtumfgfrcjuznfgmoy.supabase.co';
     const supabaseKey =
-      process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_ANON_KEY || '';
+      process.env.SUPABASE_SERVICE_ROLE ||
+      process.env.SUPABASE_ANON_KEY ||
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoaHR1bWZnZnJjanV6bmZnbW95Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjgzODA2MSwiZXhwIjoyMDg4NDE0MDYxfQ.bbD4pU_047MTxMs2QVeydwNe2fbtmbNSYWv72TubriA';
     const bucket = (process.env.SUPABASE_BUCKET || 'uploads').trim();
-
-    console.log('--- UPLOAD DEBUG ---');
-    console.log('SUPABASE_URL:', supabaseUrl);
-    console.log(
-      'SUPABASE_SERVICE_ROLE exists:',
-      !!process.env.SUPABASE_SERVICE_ROLE,
-    );
-    console.log('SUPABASE_ANON_KEY exists:', !!process.env.SUPABASE_ANON_KEY);
-    console.log('supabaseKey length:', supabaseKey.length);
-    console.log('bucket:', bucket);
-
-    if (!supabaseKey) {
-      throw new BadRequestException(
-        'Supabase URL atau Key belum dikonfigurasi di backend.',
-      );
-    }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -150,7 +127,7 @@ export class PublicLettersController {
 
     if (error) {
       console.error('Supabase Upload Error:', error);
-      throw new BadRequestException('Gagal mengunggah file ke cloud storage.');
+      throw new BadRequestException('Gagal mengunggah file: ' + error.message);
     }
 
     const { data: publicUrlData } = supabase.storage
