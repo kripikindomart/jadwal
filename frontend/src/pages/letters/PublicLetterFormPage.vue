@@ -8,7 +8,7 @@ const route = useRoute()
 const router = useRouter()
 const letterTypeId = route.params.id as string
 
-const apiBase = import.meta.env.VITE_API_URL || ''
+const apiBase = import.meta.env.VITE_API_URL || '/api'
 
 const letterType = ref<any>(null)
 const loading = ref(true)
@@ -29,7 +29,7 @@ const formData = ref<Record<string, any>>({})
 
 onMounted(async () => {
   try {
-    const res = await axios.get(`${apiBase}/api/public-letters/types/${letterTypeId}`)
+    const res = await axios.get(`${apiBase}/public-letters/types/${letterTypeId}`)
     letterType.value = res.data
     // Initialize formData for each field
     if (res.data.fields) {
@@ -63,7 +63,7 @@ const submitRequest = async () => {
 
   submitting.value = true
   try {
-    const res = await axios.post(`${apiBase}/api/public-letters/submit`, {
+    const res = await axios.post(`${apiBase}/public-letters/submit`, {
       letterTypeId: Number(letterTypeId),
       ...identity.value,
       submittedData: formData.value,

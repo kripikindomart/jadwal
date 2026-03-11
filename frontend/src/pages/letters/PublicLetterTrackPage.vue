@@ -2,17 +2,21 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import { ArrowLeft, Clock, CheckCircle2, XCircle, Loader2 } from 'lucide-vue-next'
+import { ArrowLeft, Clock, CheckCircle2, XCircle, Loader2, FileText } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 const ticket = route.params.ticket as string
 
-const apiBase = import.meta.env.VITE_API_URL || ''
+const apiBase = import.meta.env.VITE_API_URL || '/api'
+const rootUrl = apiBase.replace(/\/api\/?$/, '') || ''
 
-const request = ref<any>(null)
+const ticketLabel = ref(route.params.ticket as string || '')
+
+const requestData = ref<any>(null)
 const loading = ref(true)
 const error = ref('')
+const searching = ref(false) // Added searching state
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   PENDING: { label: 'Menunggu Diproses', color: 'text-yellow-700 bg-yellow-50 border-yellow-200', icon: Clock },
@@ -24,17 +28,33 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
 
 onMounted(async () => {
   try {
-    const res = await axios.get(`${apiBase}/api/public-letters/track/${ticket}`)
-    request.value = res.data
+    searching.value = true
+    const res = await axios.get(`${apiBase}/public-letters/track/${ticket}`)
+    requestData.value = res.data
   } catch (e: any) {
     error.value = e.response?.data?.message || 'Nomor tiket tidak ditemukan.'
   } finally {
     loading.value = false
+    searching.value = false
   }
 })
 
 const formatDate = (d: string) => {
   return new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+const isPdfOrImage = (val: string) => {
+  if (typeof val === 'string' && val.match(/\.(pdf|jpe?g|png|gif)$/i)) return true
+  return false
+}
+
+const printLetter = (ticketNumber: string) => {
+  const _route = router.resolve({
+    name: 'letters.print',
+    params: { id: 'public' },
+    query: { public_ticket: ticketNumber }
+  })
+  window.open(_route.href, '_blank')
 }
 </script>
 
@@ -73,37 +93,62 @@ const formatDate = (d: string) => {
         <!-- Status Card -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <div class="flex items-center gap-4 mb-4">
-            <div class="p-3 rounded-xl" :class="statusConfig[request.status]?.color || 'bg-gray-50'">
-              <component :is="statusConfig[request.status]?.icon || Clock" class="w-6 h-6" />
+            <div class="p-3 rounded-xl" :class="statusConfig[requestData.status]?.color || 'bg-gray-50'">
+              <component :is="statusConfig[requestData.status]?.icon || Clock" class="w-6 h-6" />
             </div>
             <div>
-              <p class="text-sm font-bold uppercase tracking-wider" :class="statusConfig[request.status]?.color?.split(' ')[0]">
-                {{ statusConfig[request.status]?.label || request.status }}
+              <p class="text-sm font-bold uppercase tracking-wider" :class="statusConfig[requestData.status]?.color?.split(' ')[0]">
+                {{ statusConfig[requestData.status]?.label || requestData.status }}
               </p>
-              <p class="text-lg font-bold text-gray-900">{{ request.letterType }}</p>
+              <p class="text-lg font-bold text-gray-900">{{ requestData.letterType }}</p>
             </div>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
             <div>
               <p class="text-xs font-bold text-gray-400 uppercase">Nama Pemohon</p>
-              <p class="text-sm font-medium text-gray-800 mt-0.5">{{ request.requesterName }}</p>
+              <p class="text-sm font-medium text-gray-800 mt-0.5">{{ requestData.requesterName }}</p>
             </div>
             <div>
               <p class="text-xs font-bold text-gray-400 uppercase">Tanggal Diajukan</p>
-              <p class="text-sm font-medium text-gray-800 mt-0.5">{{ formatDate(request.submittedAt) }}</p>
+              <p class="text-sm font-medium text-gray-800 mt-0.5">{{ formatDate(requestData.submittedAt) }}</p>
             </div>
             <div>
               <p class="text-xs font-bold text-gray-400 uppercase">Terakhir Diperbarui</p>
-              <p class="text-sm font-medium text-gray-800 mt-0.5">{{ formatDate(request.updatedAt) }}</p>
+              <p class="text-sm font-medium text-gray-800 mt-0.5">{{ formatDate(requestData.updatedAt) }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submitted Data -->
+        <div v-if="requestData.submittedData && Object.keys(requestData.submittedData).length > 0" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <h3 class="text-lg font-bold text-gray-900 mb-4">Data Pengajuan</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div v-for="(f, index) in requestData.letterForm" :key="index">
+              <p class="text-xs font-bold text-gray-400 uppercase">{{ f.label }}</p>
+              <p class="text-sm font-medium text-gray-500">{{ requestData.submittedData[f.id] }}</p>
+              <a v-if="isPdfOrImage(requestData.submittedData[f.id])" :href="rootUrl + requestData.submittedData[f.id]" target="_blank" class="text-indigo-600 hover:underline flex items-center mt-1">
+                <FileText class="w-4 h-4 mr-1"/> Lihat Berkas
+              </a>
             </div>
           </div>
         </div>
 
         <!-- Admin Notes -->
-        <div v-if="request.adminNotes" class="bg-yellow-50 border border-yellow-200 rounded-xl p-5">
+        <div v-if="requestData.adminNotes" class="bg-yellow-50 border border-yellow-200 rounded-xl p-5">
           <p class="text-xs font-bold text-yellow-700 uppercase mb-1">Catatan dari Admin</p>
-          <p class="text-sm text-yellow-800">{{ request.adminNotes }}</p>
+          <p class="text-sm text-yellow-800">{{ requestData.adminNotes }}</p>
+        </div>
+
+        <!-- SURAT SELESAI / APPROVED -->
+        <div v-if="requestData.status === 'APPROVED' || requestData.status === 'FINISHED'" class="mt-8 border-t pt-6 text-center">
+          <h3 class="text-lg font-bold text-gray-800 mb-2">Surat Anda Telah Selesai</h3>
+          <p class="text-sm text-gray-600 mb-4">Silakan download atau cetak surat Anda menggunakan tombol di bawah ini.</p>
+          <button @click="printLetter(requestData.ticketNumber)"
+            class="inline-flex items-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all">
+            <FileText class="w-5 h-5 mr-2" />
+            Download / Cetak Surat
+          </button>
         </div>
 
         <div class="text-center">

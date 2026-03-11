@@ -83,6 +83,7 @@ const getFieldLabel = (letterType: any, fieldId: string) => {
 }
 
 const apiBase = import.meta.env.VITE_API_URL || ''
+const rootUrl = apiBase.replace(/\/api\/?$/, '') || ''
 
 onMounted(fetchData)
 </script>
@@ -161,7 +162,7 @@ onMounted(fetchData)
                 <div v-for="(val, key) in req.submittedData" :key="key as string" class="flex gap-2 text-sm">
                   <span class="font-medium text-gray-600 min-w-[150px]">{{ getFieldLabel(req.letterType, key as string) }}:</span>
                   <span class="text-gray-800 break-all">
-                    <a v-if="typeof val === 'string' && val.startsWith('/uploads/')" :href="apiBase + val" target="_blank" class="text-indigo-600 font-semibold hover:underline flex items-center gap-1">
+                    <a v-if="typeof val === 'string' && val.startsWith('/uploads/')" :href="rootUrl + val" target="_blank" class="text-indigo-600 font-semibold hover:underline flex items-center gap-1">
                        Lihat File Terlampir
                     </a>
                     <span v-else>{{ val }}</span>

@@ -5,7 +5,8 @@ import axios from 'axios'
 import { Mail, Search, ChevronRight, User, Edit3, CheckCircle2, FileText, Send, ArrowLeft, AlertTriangle, Save, UploadCloud, X, File as FileIcon, ChevronDown, Lock, ShieldCheck, Info, Eye, EyeOff, ZoomIn, ZoomOut, RotateCcw } from 'lucide-vue-next'
 
 const router = useRouter()
-const apiBase = import.meta.env.VITE_API_URL || ''
+const apiBase = import.meta.env.VITE_API_URL || '/api'
+const rootUrl = apiBase.replace(/\/api\/?$/, '') || ''
 
 // Steps: 1=Cari Mahasiswa, 1.5=PIN, 2=Data & Layanan, 3=Formulir
 const step = ref(1)
@@ -79,7 +80,7 @@ watch(studentSearchQuery, (val) => {
   searching.value = true
   searchTimer = setTimeout(async () => {
     try {
-      const res = await axios.get(`${apiBase}/api/public-letters/search-students`, { params: { q: val } })
+      const res = await axios.get(`${apiBase}/public-letters/search-students`, { params: { q: val } })
       searchResults.value = res.data
     } catch (e) { console.error(e) }
     finally { searching.value = false }
@@ -126,14 +127,14 @@ const filteredLecturers2 = computed(() => {
 // API calls
 const fetchConcentrations = async (prodiId: number) => {
   try {
-    const res = await axios.get(`${apiBase}/api/public-letters/concentrations/${prodiId}`)
+    const res = await axios.get(`${apiBase}/public-letters/concentrations/${prodiId}`)
     concentrations.value = res.data
   } catch (e) { console.error(e) }
 }
 
 const fetchLecturers = async () => {
   try {
-    const res = await axios.get(`${apiBase}/api/public-letters/lecturers`)
+    const res = await axios.get(`${apiBase}/public-letters/lecturers`)
     lecturers.value = res.data
   } catch (e) { console.error(e) }
 }
@@ -141,7 +142,7 @@ const fetchLecturers = async () => {
 const fetchStudentDetail = async (studentId: number) => {
   loading.value = true
   try {
-    const res = await axios.get(`${apiBase}/api/public-letters/student-detail/${studentId}`)
+    const res = await axios.get(`${apiBase}/public-letters/student-detail/${studentId}`)
     studentDetail.value = res.data
     profileForm.value = { ...res.data }
     if (res.data.prodiId) await fetchConcentrations(res.data.prodiId)
@@ -157,7 +158,7 @@ const fetchStudentDetail = async (studentId: number) => {
 
 const fetchLetterTypes = async () => {
   try {
-    const res = await axios.get(`${apiBase}/api/public-letters/types`)
+    const res = await axios.get(`${apiBase}/public-letters/types`)
     letterTypes.value = res.data
   } catch (e) { console.error(e) }
 }
@@ -165,7 +166,7 @@ const fetchLetterTypes = async () => {
 const fetchLetterHistory = async (studentId: number, pin: string) => {
   loadingHistory.value = true
   try {
-    const res = await axios.post(`${apiBase}/api/public-letters/history`, { studentId, pin })
+    const res = await axios.post(`${apiBase}/public-letters/history`, { studentId, pin })
     letterHistory.value = res.data
   } catch (e) {
     console.error('Gagal mengambil histori surat:', e)
@@ -243,7 +244,7 @@ const verifyPin = async () => {
   verifyingPin.value = true
   pinError.value = ''
   try {
-    const res = await axios.post(`${apiBase}/api/public-letters/verify-pin`, {
+    const res = await axios.post(`${apiBase}/public-letters/verify-pin`, {
       studentId: selectedStudentId.value,
       pin: pinInput.value,
     })
@@ -295,7 +296,7 @@ const saveProfile = async () => {
         payload[key] = profileForm.value[key]
       }
     }
-    const res = await axios.patch(`${apiBase}/api/public-letters/student-profile/${selectedStudentId.value}`, payload)
+    const res = await axios.patch(`${apiBase}/public-letters/student-profile/${selectedStudentId.value}`, payload)
     studentDetail.value = res.data
     profileForm.value = { ...res.data }
     editMode.value = false
@@ -346,7 +347,7 @@ const handleFileUpload = async (event: any, fieldId: string, allowedExts: string
   formDataPayload.append('file', file)
   uploadingFile.value[fieldId] = true
   try {
-    const res = await axios.post(`${apiBase}/api/public-letters/upload`, formDataPayload, {
+    const res = await axios.post(`${apiBase}/public-letters/upload`, formDataPayload, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
     formData.value[fieldId] = res.data.url
@@ -370,7 +371,7 @@ const submitRequest = async () => {
   }
   submitting.value = true
   try {
-    const res = await axios.post(`${apiBase}/api/public-letters/submit`, {
+    const res = await axios.post(`${apiBase}/public-letters/submit`, {
       letterTypeId: selectedLetterType.value.id,
       requesterName: studentDetail.value.name,
       requesterNim: studentDetail.value.nim,
@@ -1077,7 +1078,7 @@ const mappedHtmlPreview = computed(() => {
                       </div>
                       <div class="min-w-0">
                         <p class="text-sm font-semibold text-emerald-800 truncate">File berhasil diupload</p>
-                        <a :href="apiBase + formData[field.id]" target="_blank" class="text-xs text-emerald-600 hover:underline truncate">{{ formData[field.id].split('/').pop() }}</a>
+                        <a :href="rootUrl + formData[field.id]" target="_blank" class="text-xs text-emerald-600 hover:underline truncate">{{ formData[field.id].split('/').pop() }}</a>
                       </div>
                     </div>
                     <button @click="formData[field.id] = ''" class="p-2 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors shrink-0" title="Hapus File">
@@ -1124,7 +1125,7 @@ const mappedHtmlPreview = computed(() => {
                      :style="{ transform: `scale(${previewZoom})`, transformOrigin: 'top center', marginBottom: `-${(1 - previewZoom) * 100}%` }">
                   <!-- Header Image -->
                   <div v-if="selectedLetterType.template.headerImageUrl" class="mb-8 border-b-2 border-black pb-4 text-center">
-                    <img :src="apiBase + selectedLetterType.template.headerImageUrl" alt="Kop Surat" class="max-w-full max-h-32 mx-auto" />
+                    <img :src="rootUrl + selectedLetterType.template.headerImageUrl" alt="Kop Surat" class="max-w-full max-h-32 mx-auto" />
                   </div>
                   
                   <!-- Note: If there is no specific header image, we display default text header just for visual cue -->
@@ -1153,7 +1154,7 @@ const mappedHtmlPreview = computed(() => {
                          
                          <div class="h-20 sm:h-24 flex items-center justify-center my-2">
                            <img v-if="selectedLetterType.template.signatureType === 'manual' && selectedLetterType.template.signatureImageUrl" 
-                                :src="apiBase + selectedLetterType.template.signatureImageUrl" 
+                                :src="rootUrl + selectedLetterType.template.signatureImageUrl" 
                                 class="max-h-full opacity-80" alt="Tanda Tangan" />
                            <div v-else-if="selectedLetterType.template.signatureType === 'barcode'" class="w-16 h-16 bg-gray-200 border-2 border-gray-400 border-dashed rounded flex flex-col items-center justify-center text-[10px] text-gray-500">
                              QR CO[E]
