@@ -52,6 +52,7 @@ const templateData = ref<any>({
   signatureType: 'manual',
   signatureTitle: 'Mengetahui,',
   signatureLocation: '',
+  signatureAlignment: 'right',
   tembusanText: ''
 })
 
@@ -162,6 +163,7 @@ const saveContent = async () => {
       signatureType: templateData.value.signatureType,
       signatureTitle: templateData.value.signatureTitle,
       signatureLocation: templateData.value.signatureLocation,
+      signatureAlignment: templateData.value.signatureAlignment || 'right',
       tembusanText: templateData.value.tembusanText
     })
     toast.success('Format surat berhasil disimpan!')
@@ -321,6 +323,16 @@ const insertVariable = (tag: string) => {
              <div class="w-full mb-3 text-left">
                <label class="block text-xs font-semibold text-gray-600 mb-1">Judul TTD</label>
                <textarea v-model="templateData.signatureTitle" rows="2" placeholder="Mengetahui,&#10;Plt. Ketua Program Studi" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-600 outline-none resize-none"></textarea>
+             </div>
+
+             <!-- Signature Alignment -->
+             <div class="w-full mb-3 text-left">
+               <label class="block text-xs font-semibold text-gray-600 mb-1">Letak Tanda Tangan</label>
+               <select v-model="templateData.signatureAlignment" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-600">
+                 <option value="left">Kiri</option>
+                 <option value="center">Tengah</option>
+                 <option value="right">Kanan</option>
+               </select>
              </div>
 
              <!-- Signature Type -->

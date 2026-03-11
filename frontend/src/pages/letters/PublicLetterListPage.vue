@@ -1140,30 +1140,32 @@ const mappedHtmlPreview = computed(() => {
                   <div class="prose prose-sm sm:prose-base max-w-none text-black prose-p:my-1.5 prose-headings:my-3" v-html="mappedHtmlPreview"></div>
 
                   <!-- Signature Section & Tembusan -->
-                  <div class="mt-16 flex flex-col sm:flex-row justify-between text-sm">
-                    <div class="w-1/2">
-                       <div v-if="selectedLetterType.template.tembusanText" class="mt-8">
-                         <strong>Tembusan:</strong>
-                         <p class="whitespace-pre-wrap">{{ selectedLetterType.template.tembusanText }}</p>
-                       </div>
-                    </div>
-                    
-                    <div class="w-1/2 flex flex-col items-end text-center">
-                      <div class="inline-block relative">
-                         <p class="mb-1">{{ selectedLetterType.template.signatureLocation || 'Bogor' }}, {{ new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) }}</p>
-                         <p class="font-bold whitespace-pre-wrap leading-tight mb-4 min-h-[2.5rem]">{{ selectedLetterType.template.signatureTitle || 'Mengetahui,' }}</p>
+                  <div class="mt-16 text-sm text-black">
+                    <div class="flex" :class="{
+                      'justify-start': selectedLetterType.template.signatureAlignment === 'left',
+                      'justify-center': selectedLetterType.template.signatureAlignment === 'center',
+                      'justify-end': !selectedLetterType.template.signatureAlignment || selectedLetterType.template.signatureAlignment === 'right'
+                    }">
+                      <div class="w-64 flex flex-col items-center text-center">
+                         <p class="mb-1 text-black font-normal">{{ selectedLetterType.template.signatureLocation || 'Bogor' }}, {{ new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) }}</p>
+                         <p class="font-bold whitespace-pre-wrap leading-tight mb-4 min-h-[2.5rem] text-black">{{ selectedLetterType.template.signatureTitle || 'Mengetahui,' }}</p>
                          
                          <div class="h-20 sm:h-24 flex items-center justify-center my-2">
                            <img v-if="selectedLetterType.template.signatureType === 'manual' && selectedLetterType.template.signatureImageUrl" 
                                 :src="rootUrl + selectedLetterType.template.signatureImageUrl" 
                                 class="max-h-full opacity-80" alt="Tanda Tangan" />
                            <div v-else-if="selectedLetterType.template.signatureType === 'barcode'" class="w-16 h-16 bg-gray-200 border-2 border-gray-400 border-dashed rounded flex flex-col items-center justify-center text-[10px] text-gray-500">
-                             QR CO[E]
+                             QR CODE
                            </div>
                          </div>
                          
-                         <p class="font-bold underline">{{ selectedLetterType.template.signatureName || '(Nama Penanda Tangan)' }}</p>
+                         <p class="font-bold underline text-black">{{ selectedLetterType.template.signatureName || '(Nama Penanda Tangan)' }}</p>
                       </div>
+                    </div>
+                    
+                    <div v-if="selectedLetterType.template.tembusanText" class="mt-8 text-left w-full text-black">
+                       <strong class="text-black">Tembusan:</strong>
+                       <p class="whitespace-pre-wrap text-black">{{ selectedLetterType.template.tembusanText }}</p>
                     </div>
                   </div>
                 </div>

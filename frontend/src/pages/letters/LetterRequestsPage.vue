@@ -14,6 +14,8 @@ const requests = ref<any[]>([])
 const loading = ref(false)
 const statusFilter = ref('')
 const expandedId = ref<number | null>(null)
+const editingDataId = ref<number | null>(null)
+const editValues = ref<Record<string, any>>({})
 
 const statusLabels: Record<string, { label: string; class: string }> = {
   PENDING: { label: 'Menunggu', class: 'bg-yellow-50 text-yellow-700' },
@@ -73,7 +75,31 @@ const printLetter = (req: any, isPreview: boolean = false) => {
 }
 
 const toggleExpand = (id: number) => {
+  if (expandedId.value !== id) {
+    editingDataId.value = null
+  }
   expandedId.value = expandedId.value === id ? null : id
+}
+
+const startEditData = (req: any) => {
+  editingDataId.value = req.id
+  editValues.value = JSON.parse(JSON.stringify(req.submittedData || {}))
+}
+
+const cancelEditData = () => {
+  editingDataId.value = null
+  editValues.value = {}
+}
+
+const saveEditedData = async (req: any) => {
+  try {
+    await api.patch(`/letters/requests/${req.id}/data`, { submittedData: editValues.value })
+    toast.success('Data isian berhasil diperbarui!')
+    req.submittedData = JSON.parse(JSON.stringify(editValues.value))
+    editingDataId.value = null
+  } catch (e: any) {
+    toast.error(e.response?.data?.message || 'Gagal menyimpan data isian.')
+  }
 }
 
 const formatDate = (d: string) => {
@@ -162,17 +188,38 @@ onMounted(fetchData)
 
             <!-- Submitted Data -->
             <div v-if="req.submittedData && Object.keys(req.submittedData).length > 0" class="mt-4">
-              <p class="text-xs font-bold text-gray-500 uppercase mb-2">Data Isian Form</p>
-              <div class="bg-white rounded-lg border border-gray-200 p-4 space-y-2">
-                <div v-for="(val, key) in req.submittedData" :key="key as string" class="flex gap-2 text-sm">
-                  <span class="font-medium text-gray-600 min-w-[150px]">{{ getFieldLabel(req.letterType, key as string) }}:</span>
-                  <span class="text-gray-800 break-all">
-                    <a v-if="typeof val === 'string' && (val.startsWith('/uploads/') || val.startsWith('http'))" :href="resolveUrl(val)" target="_blank" class="text-indigo-600 font-semibold hover:underline flex items-center gap-1">
-                       Lihat File Terlampir
-                    </a>
-                    <span v-else>{{ val }}</span>
-                  </span>
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-xs font-bold text-gray-500 uppercase">Data Isian Form</p>
+                <div v-if="editingDataId !== req.id">
+                   <button @click="startEditData(req)" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">Edit Data</button>
                 </div>
+                <div v-else class="flex gap-2">
+                   <button @click="cancelEditData" class="text-xs text-gray-500 hover:text-gray-700 font-medium">Batal</button>
+                   <button @click="saveEditedData(req)" class="text-xs text-emerald-600 hover:text-emerald-800 font-bold">Simpan</button>
+                </div>
+              </div>
+              
+              <div class="bg-white rounded-lg border border-gray-200 p-4 space-y-2">
+                <template v-if="editingDataId !== req.id">
+                  <div v-for="(val, key) in req.submittedData" :key="key as string" class="flex gap-2 text-sm">
+                    <span class="font-medium text-gray-600 min-w-[150px]">{{ getFieldLabel(req.letterType, key as string) }}:</span>
+                    <span class="text-gray-800 break-all">
+                      <a v-if="typeof val === 'string' && (val.startsWith('/uploads/') || val.startsWith('http'))" :href="resolveUrl(val)" target="_blank" class="text-indigo-600 font-semibold hover:underline flex items-center gap-1">
+                         Lihat File Terlampir
+                      </a>
+                      <span v-else>{{ val }}</span>
+                    </span>
+                  </div>
+                </template>
+                <template v-else>
+                  <div v-for="(val, key) in req.submittedData" :key="'edit-'+(key as string)" class="space-y-1 mt-3 first:mt-0">
+                    <label class="block text-xs font-medium text-gray-700">{{ getFieldLabel(req.letterType, key as string) }}</label>
+                    <input v-if="typeof val === 'string' && !val.startsWith('/uploads/') && !val.startsWith('http')" 
+                           type="text" v-model="editValues[key as string]" 
+                           class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500" />
+                    <div v-else class="text-xs text-gray-500 p-2 bg-gray-50 rounded italic">File upload tidak bisa diedit dari sini</div>
+                  </div>
+                </template>
               </div>
             </div>
 

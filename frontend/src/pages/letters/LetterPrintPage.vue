@@ -107,27 +107,19 @@ const compiledHTML = computed(() => {
   // Fallback cleanup for remaining unmapped tags
   templateText = templateText.replace(/\[.+?\]/g, '<span style="color:red">[Data Kosong]</span>')
 
-  // Build bottom section: Tembusan (left) + Signature (right)
+  // Build bottom section: Signature and Tembusan
   let bottomHtml = ''
   const hasSignature = templateObj.signatureType === 'barcode' || templateObj.signatureImageUrl || templateObj.signatureName
   const hasTembusan = templateObj.tembusanText && templateObj.tembusanText.trim()
 
   if (hasSignature || hasTembusan) {
-    bottomHtml += '<div style="margin-top: 40px; display: flex; justify-content: space-between; align-items: flex-start;">'
+    let alignValue = 'flex-end';
+    if (templateObj.signatureAlignment === 'left') alignValue = 'flex-start';
+    if (templateObj.signatureAlignment === 'center') alignValue = 'center';
 
-    // Tembusan (left side)
-    if (hasTembusan) {
-      const tembusanLines = templateObj.tembusanText.trim().split('\n').map((l: string) => `<li style="margin-bottom: 2px;">${l.replace(/^\d+\.\s*/, '')}</li>`).join('')
-      bottomHtml += `
-        <div style="width: 50%; text-align: left;">
-          <p style="margin-bottom: 5px; font-weight: bold; text-decoration: underline;">Tembusan:</p>
-          <ol style="margin: 0; padding-left: 18px; font-size: 12px;">${tembusanLines}</ol>
-        </div>`
-    } else {
-      bottomHtml += '<div></div>'
-    }
+    bottomHtml += `<div style="margin-top: 40px; display: flex; justify-content: ${alignValue};">`
 
-    // Signature (right side)
+    // Signature
     if (hasSignature) {
       const signatureTitle = templateObj.signatureTitle ? templateObj.signatureTitle.replace(/\n/g, '<br>') : 'Mengetahui,'
       const signatureName = templateObj.signatureName || '...................................'
@@ -139,7 +131,7 @@ const compiledHTML = computed(() => {
         const barcodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(verifyUrl)}&margin=0`
         signatureImageHtml = `
           <img src="${barcodeUrl}" alt="QR Code" style="display: block; height: 100px; width: 100px; margin: 8px auto 4px auto;" />
-          <p style="margin: 0 0 8px 0; font-size: 10px; color: #555; font-style: italic;">Dokumen ini telah ditandatangani secara elektronik</p>
+          <p style="margin: 0 0 8px 0; font-size: 10px; color: #333; font-style: italic;">Dokumen ini telah ditandatangani secara elektronik</p>
         `
       } else if (templateObj.signatureImageUrl) {
         signatureImageHtml = `<img src="${templateObj.signatureImageUrl}" alt="TTD" style="display: block; max-height: 100px; width: auto; mix-blend-mode: multiply; margin: 8px auto;" />`
@@ -148,16 +140,25 @@ const compiledHTML = computed(() => {
       }
 
       bottomHtml += `
-        <div style="text-align: center; width: 280px;">
-          ${signatureLocation ? `<p style="margin-bottom: 5px; font-size: 14px;">${signatureLocation}</p>` : ''}
-          <p style="margin: 0; font-size: 14px;">${signatureTitle}</p>
+        <div style="text-align: center; width: 280px; color: black;">
+          ${signatureLocation ? `<p style="margin-bottom: 5px; font-size: 14px; color: black;">${signatureLocation}</p>` : ''}
+          <p style="margin: 0; font-size: 14px; color: black;">${signatureTitle}</p>
           ${signatureImageHtml}
-          <p style="margin: 0; font-weight: bold; font-size: 14px; text-decoration: underline;">${signatureName}</p>
+          <p style="margin: 0; font-weight: bold; font-size: 14px; text-decoration: underline; color: black;">${signatureName}</p>
         </div>`
     }
 
     bottomHtml += '</div>'
-    templateText += bottomHtml
+
+    // Tembusan
+    if (hasTembusan) {
+      const tembusanLines = templateObj.tembusanText.trim().split('\n').map((l: string) => `<li style="margin-bottom: 2px; color: black;">${l.replace(/^\d+\.\s*/, '')}</li>`).join('')
+      bottomHtml += `
+        <div style="width: 100%; text-align: left; margin-top: 20px; color: black;">
+          <p style="margin-bottom: 5px; font-weight: bold; text-decoration: underline; color: black;">Tembusan:</p>
+          <ol style="margin: 0; padding-left: 18px; font-size: 12px; color: black;">${tembusanLines}</ol>
+        </div>`
+    }
   }
 
   return templateText
