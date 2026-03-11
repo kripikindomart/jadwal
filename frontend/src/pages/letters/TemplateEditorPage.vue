@@ -71,7 +71,7 @@ const editorInit = {
   resize: false,
   object_resizing: true,
   table_resize_bars: true,
-  table_column_resizing: 'preservetable',
+  table_column_resizing: 'resizetable',
   draggable_modal: true,
   plugins: [
     'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
