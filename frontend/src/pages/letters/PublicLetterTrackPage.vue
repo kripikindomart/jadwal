@@ -10,6 +10,7 @@ const ticket = route.params.ticket as string
 
 const apiBase = import.meta.env.VITE_API_URL || '/api'
 const rootUrl = apiBase.replace(/\/api\/?$/, '') || ''
+const resolveUrl = (url: string) => url && url.startsWith('http') ? url : rootUrl + url
 
 const requestData = ref<any>(null)
 const loading = ref(true)
@@ -125,7 +126,7 @@ const printLetter = (ticketNumber: string) => {
             <div v-for="(f, index) in requestData.letterForm" :key="index">
               <p class="text-xs font-bold text-gray-400 uppercase">{{ f.label }}</p>
               <p class="text-sm font-medium text-gray-500">{{ requestData.submittedData[f.id] }}</p>
-              <a v-if="isPdfOrImage(requestData.submittedData[f.id])" :href="rootUrl + requestData.submittedData[f.id]" target="_blank" class="text-indigo-600 hover:underline flex items-center mt-1">
+              <a v-if="isPdfOrImage(requestData.submittedData[f.id])" :href="resolveUrl(requestData.submittedData[f.id])" target="_blank" class="text-indigo-600 hover:underline flex items-center mt-1">
                 <FileText class="w-4 h-4 mr-1"/> Lihat Berkas
               </a>
             </div>

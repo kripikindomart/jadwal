@@ -7,6 +7,7 @@ import { Mail, Search, ChevronRight, User, Edit3, CheckCircle2, FileText, Send, 
 const router = useRouter()
 const apiBase = import.meta.env.VITE_API_URL || '/api'
 const rootUrl = apiBase.replace(/\/api\/?$/, '') || ''
+const resolveUrl = (url: string) => url && url.startsWith('http') ? url : rootUrl + url
 
 // Steps: 1=Cari Mahasiswa, 1.5=PIN, 2=Data & Layanan, 3=Formulir
 const step = ref(1)
@@ -1078,7 +1079,7 @@ const mappedHtmlPreview = computed(() => {
                       </div>
                       <div class="min-w-0">
                         <p class="text-sm font-semibold text-emerald-800 truncate">File berhasil diupload</p>
-                        <a :href="rootUrl + formData[field.id]" target="_blank" class="text-xs text-emerald-600 hover:underline truncate">{{ formData[field.id].split('/').pop() }}</a>
+                        <a :href="resolveUrl(formData[field.id])" target="_blank" class="text-xs text-emerald-600 hover:underline truncate">{{ formData[field.id].split('/').pop() }}</a>
                       </div>
                     </div>
                     <button @click="formData[field.id] = ''" class="p-2 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors shrink-0" title="Hapus File">
