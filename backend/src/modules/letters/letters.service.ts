@@ -154,29 +154,46 @@ export class LettersService {
 
   // ====== Media Library ======
   async getMediaLibrary() {
-    const uploadDir = join(process.cwd(), 'uploads', 'letters');
     try {
-      await fs.access(uploadDir);
-      const files = await fs.readdir(uploadDir);
-      const mediaFiles = [];
-      for (const file of files) {
-        const filePath = join(uploadDir, file);
-        const stats = await fs.stat(filePath);
-        if (stats.isFile()) {
-          mediaFiles.push({
-            name: file,
-            url: `/uploads/letters/${file}`,
-            size: stats.size,
-            createdAt: stats.birthtime,
-          });
-        }
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabaseUrl =
+        process.env.SUPABASE_URL || 'https://thhtumfgfrcjuznfgmoy.supabase.co';
+      const supabaseKey =
+        process.env.SUPABASE_SERVICE_ROLE ||
+        process.env.SUPABASE_ANON_KEY ||
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoaHR1bWZnZnJjanV6bmZnbW95Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjgzODA2MSwiZXhwIjoyMDg4NDE0MDYxfQ.bbD4pU_047MTxMs2QVeydwNe2fbtmbNSYWv72TubriA';
+      const bucket = (process.env.SUPABASE_BUCKET || 'uploads').trim();
+
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .list('letters', {
+          limit: 100,
+          sortBy: { column: 'created_at', order: 'desc' },
+        });
+
+      if (error || !data) {
+        console.error('Supabase list error:', error);
+        return [];
       }
-      // Sort newest first
-      return mediaFiles.sort(
-        (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
-      );
+
+      return data
+        .filter((f) => f.name && !f.name.startsWith('.'))
+        .map((f) => {
+          const { data: urlData } = supabase.storage
+            .from(bucket)
+            .getPublicUrl(`letters/${f.name}`);
+          return {
+            name: f.name,
+            url: urlData.publicUrl,
+            size: f.metadata?.size || 0,
+            createdAt: f.created_at || new Date().toISOString(),
+          };
+        });
     } catch (e) {
-      return []; // Empty or doesn't exist
+      console.error('Media library error:', e);
+      return [];
     }
   }
 
