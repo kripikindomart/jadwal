@@ -15,6 +15,14 @@ export class CreateLetterTemplateDto {
 
   @IsString()
   @IsOptional()
+  headerMode?: 'image' | 'editor';
+
+  @IsString()
+  @IsOptional()
+  headerHtmlContent?: string;
+
+  @IsString()
+  @IsOptional()
   signatureImageUrl?: string;
 
   @IsString()
@@ -36,6 +44,10 @@ export class CreateLetterTemplateDto {
   @IsString()
   @IsOptional()
   tembusanText?: string;
+
+  @IsString()
+  @IsOptional()
+  signatureAlignment?: 'left' | 'center' | 'right';
 }
 
 export class UpdateLetterTemplateDto {
@@ -53,6 +65,14 @@ export class UpdateLetterTemplateDto {
 
   @IsString()
   @IsOptional()
+  headerMode?: 'image' | 'editor';
+
+  @IsString()
+  @IsOptional()
+  headerHtmlContent?: string;
+
+  @IsString()
+  @IsOptional()
   signatureImageUrl?: string;
 
   @IsString()
@@ -74,4 +94,8 @@ export class UpdateLetterTemplateDto {
   @IsString()
   @IsOptional()
   tembusanText?: string;
+
+  @IsString()
+  @IsOptional()
+  signatureAlignment?: 'left' | 'center' | 'right';
 }
