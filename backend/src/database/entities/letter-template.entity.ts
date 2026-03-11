@@ -40,6 +40,15 @@ export class LetterTemplate {
   @Column({ type: 'text', nullable: true })
   tembusanText: string;
 
+  @Column({ type: 'varchar', default: 'right', nullable: true })
+  signatureAlignment: string;
+
+  @Column({ type: 'varchar', default: 'image', nullable: true })
+  headerMode: 'image' | 'editor';
+
+  @Column({ type: 'text', nullable: true })
+  headerHtmlContent: string;
+
   @OneToMany(() => LetterType, (lt: LetterType) => lt.template)
   letterTypes: LetterType[];
 

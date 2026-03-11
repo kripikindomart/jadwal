@@ -116,6 +116,24 @@ const apiBase = import.meta.env.VITE_API_URL || ''
 const rootUrl = apiBase.replace(/\/api\/?$/, '') || ''
 const resolveUrl = (url: string) => url && url.startsWith('http') ? url : rootUrl + url
 
+const savingMetaId = ref<number | null>(null)
+const saveMetadata = async (req: any) => {
+  savingMetaId.value = req.id
+  try {
+    await api.patch(`/letters/requests/${req.id}/metadata`, {
+      nomorSurat: req.nomorSurat,
+      lampiran: req.lampiran,
+      perihal: req.perihal,
+      tanggalSurat: req.tanggalSurat,
+    })
+    toast.success('Metadata surat berhasil disimpan!')
+  } catch (e: any) {
+    toast.error(e.response?.data?.message || 'Gagal menyimpan metadata.')
+  } finally {
+    savingMetaId.value = null
+  }
+}
+
 onMounted(fetchData)
 </script>
 
@@ -183,6 +201,39 @@ onMounted(fetchData)
               <div>
                 <p class="text-xs font-bold text-gray-500 uppercase mb-1">No. Telepon</p>
                 <p class="text-sm text-gray-800">{{ req.requesterPhone || '-' }}</p>
+              </div>
+            </div>
+
+            <!-- Letter Metadata (Nomor/Perihal/Lampiran/Tanggal) -->
+            <div class="mt-4 bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <p class="text-xs font-bold text-indigo-700 uppercase">📋 Metadata Surat</p>
+                <button @click="saveMetadata(req)" :disabled="savingMetaId === req.id"
+                  class="px-3 py-1 text-xs font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
+                  {{ savingMetaId === req.id ? 'Menyimpan...' : 'Simpan Metadata' }}
+                </button>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">Nomor Surat</label>
+                  <input v-model="req.nomorSurat" type="text" placeholder="031/K.8/SPs-UIKA/2026"
+                    class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none bg-white" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Surat</label>
+                  <input v-model="req.tanggalSurat" type="text" placeholder="11 Maret 2026"
+                    class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none bg-white" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">Perihal</label>
+                  <input v-model="req.perihal" type="text" placeholder="Permohonan Menjadi Kajian Ahli Media"
+                    class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none bg-white" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">Lampiran</label>
+                  <input v-model="req.lampiran" type="text" placeholder="-"
+                    class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none bg-white" />
+                </div>
               </div>
             </div>
 

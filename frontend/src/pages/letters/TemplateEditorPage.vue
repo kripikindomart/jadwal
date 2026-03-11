@@ -47,6 +47,8 @@ const templateData = ref<any>({
   title: '',
   htmlContent: '',
   headerImageUrl: '',
+  headerMode: 'image',
+  headerHtmlContent: '',
   signatureImageUrl: '',
   signatureName: '',
   signatureType: 'manual',
@@ -105,6 +107,30 @@ const editorInit = {
   }
 }
 
+const headerEditorInit = {
+  height: 200,
+  menubar: false,
+  promotion: false,
+  skin: false,
+  content_css: false,
+  resize: false,
+  plugins: ['lists', 'link', 'image', 'table', 'code'],
+  toolbar: 'undo redo | bold italic underline | alignleft aligncenter alignright | fontsize | forecolor | image | code',
+  content_style: `
+    ${contentCss}
+    ${contentUiCss}
+    body { font-family: serif; font-size: 14px; padding: 8px; margin: 0; }
+    table { border-collapse: collapse; width: 100%; }
+    table td, table th { border: none; padding: 2px 4px; }
+  `,
+  file_picker_callback: (_cb: any, _value: any, meta: any) => {
+    if (meta.filetype === 'image') {
+      mediaLibraryTarget.value = 'header'
+      isMediaLibraryOpen.value = true
+    }
+  }
+}
+
 // ========== TABLE HELPERS ==========
 const insertTable = () => {
   if (!activeEditorInstance) return
@@ -158,6 +184,8 @@ const saveContent = async () => {
     await api.patch(`/letters/templates/${route.params.id}`, {
       htmlContent: templateData.value.htmlContent,
       headerImageUrl: templateData.value.headerImageUrl,
+      headerMode: templateData.value.headerMode || 'image',
+      headerHtmlContent: templateData.value.headerHtmlContent || '',
       signatureImageUrl: templateData.value.signatureImageUrl,
       signatureName: templateData.value.signatureName,
       signatureType: templateData.value.signatureType,
@@ -205,6 +233,9 @@ const standardVariables = [
   { label: 'Email', tag: '[email]' },
   { label: 'Prodi', tag: '[prodi]' },
   { label: 'Tgl Surat', tag: '[tanggal_surat]' },
+  { label: 'Nomor Surat', tag: '[nomor_surat]' },
+  { label: 'Lampiran', tag: '[lampiran]' },
+  { label: 'Perihal', tag: '[perihal]' },
 ]
 
 const insertVariable = (tag: string) => {
@@ -265,22 +296,45 @@ const insertVariable = (tag: string) => {
     <div class="flex-1 bg-gray-100 rounded-xl shadow-sm border border-gray-200 overflow-y-auto flex flex-col h-full p-2 relative">
        <!-- Header/Kop Config -->
        <div class="mb-2 p-3 border border-dashed border-gray-300 rounded-xl bg-white flex flex-col items-center justify-center min-h-[80px] shrink-0">
-         <div v-if="templateData.headerImageUrl" class="relative group w-full max-w-2xl shrink-0">
-           <img :src="templateData.headerImageUrl" alt="Kop Surat" class="w-full h-auto object-contain rounded-lg shadow-sm bg-white" />
-           <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-             <button @click="removeHeader" class="text-white px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-medium text-sm">
-               Hapus Kop Surat
+         <!-- Mode Toggle -->
+         <div class="flex items-center gap-2 mb-3 w-full">
+           <span class="text-xs font-bold text-gray-500 uppercase">Kop Surat:</span>
+           <button @click="templateData.headerMode = 'image'" :class="templateData.headerMode === 'image' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'" class="px-3 py-1 rounded-lg text-xs font-medium transition-colors">Mode Gambar</button>
+           <button @click="templateData.headerMode = 'editor'" :class="templateData.headerMode === 'editor' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'" class="px-3 py-1 rounded-lg text-xs font-medium transition-colors">Mode Editor</button>
+         </div>
+
+         <!-- Image Mode -->
+         <template v-if="templateData.headerMode === 'image'">
+           <div v-if="templateData.headerImageUrl" class="relative group w-full max-w-2xl shrink-0">
+             <img :src="templateData.headerImageUrl" alt="Kop Surat" class="w-full h-auto object-contain rounded-lg shadow-sm bg-white" />
+             <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+               <button @click="removeHeader" class="text-white px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-medium text-sm">
+                 Hapus Kop Surat
+               </button>
+             </div>
+           </div>
+           <div v-else class="text-center">
+             <ImageIcon class="w-8 h-8 text-gray-400 mx-auto mb-2" />
+             <p class="text-sm font-medium text-gray-700 mb-2">Belum ada Kop Surat (Opsional)</p>
+             <button @click="openHeaderMediaLibrary"
+               class="px-4 py-2 text-sm font-medium bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+               Pilih dari Pustaka Media
              </button>
            </div>
-         </div>
-         <div v-else class="text-center">
-           <ImageIcon class="w-8 h-8 text-gray-400 mx-auto mb-2" />
-           <p class="text-sm font-medium text-gray-700 mb-2">Belum ada Kop Surat (Opsional)</p>
-           <button @click="openHeaderMediaLibrary"
-             class="px-4 py-2 text-sm font-medium bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
-             Pilih dari Pustaka Media
-           </button>
-         </div>
+         </template>
+
+         <!-- Editor Mode -->
+         <template v-else>
+           <div class="w-full max-w-2xl">
+             <p class="text-xs text-gray-500 mb-2">Ketik dan format Kop Surat secara manual di editor di bawah ini:</p>
+             <div class="border border-gray-200 rounded-lg overflow-hidden">
+               <Editor
+                 v-model="templateData.headerHtmlContent"
+                 :init="headerEditorInit"
+               />
+             </div>
+           </div>
+         </template>
        </div>
 
        <div v-if="loading" class="flex-1 flex items-center justify-center text-gray-400">

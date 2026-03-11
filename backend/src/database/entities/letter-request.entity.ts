@@ -78,6 +78,18 @@ export class LetterRequest {
   @Column({ type: 'text', nullable: true })
   adminNotes: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  nomorSurat: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  lampiran: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  perihal: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  tanggalSurat: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

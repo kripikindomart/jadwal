@@ -1124,12 +1124,14 @@ const mappedHtmlPreview = computed(() => {
                 <!-- A4 Paper Simulation -->
                 <div class="bg-white shadow-lg print:shadow-none w-[210mm] min-h-[297mm] pt-[0.5cm] px-[1.5cm] pb-[1cm] relative print:w-full print:m-0 print:p-0 shrink-0"
                      :style="{ transform: `scale(${previewZoom})`, transformOrigin: 'top center', marginBottom: `-${(1 - previewZoom) * 100}%` }">
-                  <!-- Header Image -->
-                  <div v-if="selectedLetterType.template.headerImageUrl" class="mb-4 border-b-2 border-black pb-4 text-center">
+                  <!-- Header: Editor Mode -->
+                  <div v-if="selectedLetterType.template.headerMode === 'editor' && selectedLetterType.template.headerHtmlContent" class="mb-4 border-b-2 border-black pb-4" v-html="selectedLetterType.template.headerHtmlContent"></div>
+                  <!-- Header: Image Mode -->
+                  <div v-else-if="selectedLetterType.template.headerImageUrl" class="mb-4 border-b-2 border-black pb-4 text-center">
                     <img :src="rootUrl + selectedLetterType.template.headerImageUrl" alt="Kop Surat" class="max-w-full max-h-32 mx-auto" />
                   </div>
                   
-                  <!-- Note: If there is no specific header image, we display default text header just for visual cue -->
+                  <!-- Note: If there is no specific header, we display default text header just for visual cue -->
                   <div v-else class="mb-4 border-b-2 border-black pb-4 text-center text-sm font-serif">
                      <h1 class="font-bold text-lg">SEKOLAH PASCASARJANA</h1>
                      <h2 class="font-bold text-md">UNIVERSITAS IBN KHALDUN BOGOR</h2>

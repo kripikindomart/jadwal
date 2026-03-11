@@ -57,7 +57,10 @@ const compiledHTML = computed(() => {
   let templateText = templateObj.htmlContent
 
   // Render Kop Surat (Header) at the very top if exists
-  if (templateObj.headerImageUrl) {
+  if (templateObj.headerMode === 'editor' && templateObj.headerHtmlContent) {
+    const headerHtml = `<div style="margin-bottom: 0.5rem;">${templateObj.headerHtmlContent}</div>`
+    templateText = headerHtml + templateText
+  } else if (templateObj.headerImageUrl) {
     const headerHtml = `<div style="margin-bottom: 0.5rem; text-align: center;"><img src="${templateObj.headerImageUrl}" alt="Kop Surat" style="max-width: 100%; height: auto;" /></div>`
     templateText = headerHtml + templateText
   }
@@ -67,10 +70,17 @@ const compiledHTML = computed(() => {
   templateText = templateText.replace(/\[nim\]/gi, requestData.value.requesterNim || '')
   templateText = templateText.replace(/\[email\]/gi, requestData.value.requesterEmail || '')
   templateText = templateText.replace(/\[phone\]/gi, requestData.value.requesterPhone || '')
-  templateText = templateText.replace(/\[tanggal_surat\]/gi, formatIndonesianDate())
+  
+  // Use admin-set tanggal if available, otherwise auto-generate
+  const tanggalSurat = requestData.value.tanggalSurat || formatIndonesianDate()
+  templateText = templateText.replace(/\[tanggal_surat\]/gi, tanggalSurat)
 
-  // Note: Prodi name isn't stored directly on the request entity in our current backend simple shape.
-  // It only stores prodiId. So we'll try to replace [prodi] with a placeholder or the ID if the name isn't joined.
+  // Metadata variables (admin-filled per request)
+  templateText = templateText.replace(/\[nomor_surat\]/gi, requestData.value.nomorSurat || '')
+  templateText = templateText.replace(/\[lampiran\]/gi, requestData.value.lampiran || '-')
+  templateText = templateText.replace(/\[perihal\]/gi, requestData.value.perihal || '')
+
+  // Note: Prodi name
   templateText = templateText.replace(/\[prodi\]/gi, requestData.value.prodi?.name || '')
 
   // 1.5 Explicit Variable Mapping (Mail Merge)
@@ -128,10 +138,10 @@ const compiledHTML = computed(() => {
       let signatureImageHtml = ''
       if (templateObj.signatureType === 'barcode' && requestData.value.ticketNumber) {
         const verifyUrl = `${window.location.origin}/layanan-surat/track/${requestData.value.ticketNumber}`
-        const barcodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(verifyUrl)}&margin=0`
+        const barcodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(verifyUrl)}&margin=0`
         signatureImageHtml = `
-          <img src="${barcodeUrl}" alt="QR Code" style="display: block; height: 100px; width: 100px; margin: 8px auto 4px auto;" />
-          <p style="margin: 0 0 8px 0; font-size: 10px; color: #333; font-style: italic;">Dokumen ini telah ditandatangani secara elektronik</p>
+          <img src="${barcodeUrl}" alt="QR Code" style="display: block; height: 70px; width: 70px; margin: 8px auto 4px auto;" />
+          <p style="margin: 0 0 8px 0; font-size: 9px; color: #333; font-style: italic;">Dokumen ini telah ditandatangani secara elektronik</p>
         `
       } else if (templateObj.signatureImageUrl) {
         signatureImageHtml = `<img src="${templateObj.signatureImageUrl}" alt="TTD" style="display: block; max-height: 100px; width: auto; mix-blend-mode: multiply; margin: 8px auto;" />`

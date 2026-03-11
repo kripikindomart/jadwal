@@ -158,6 +158,23 @@ export class LettersService {
     return this.requestRepo.save(request);
   }
 
+  async updateRequestMetadata(
+    id: number,
+    dto: {
+      nomorSurat?: string;
+      lampiran?: string;
+      perihal?: string;
+      tanggalSurat?: string;
+    },
+  ) {
+    const request = await this.findRequestById(id);
+    if (dto.nomorSurat !== undefined) request.nomorSurat = dto.nomorSurat;
+    if (dto.lampiran !== undefined) request.lampiran = dto.lampiran;
+    if (dto.perihal !== undefined) request.perihal = dto.perihal;
+    if (dto.tanggalSurat !== undefined) request.tanggalSurat = dto.tanggalSurat;
+    return this.requestRepo.save(request);
+  }
+
   // ====== Media Library ======
   async getMediaLibrary() {
     try {

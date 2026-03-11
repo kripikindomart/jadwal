@@ -124,6 +124,20 @@ export class LettersController {
     return this.lettersService.updateRequestData(id, body.submittedData);
   }
 
+  @Patch('requests/:id/metadata')
+  updateRequestMetadata(
+    @Param('id', ParseIntPipe) id: number,
+    @Body()
+    body: {
+      nomorSurat?: string;
+      lampiran?: string;
+      perihal?: string;
+      tanggalSurat?: string;
+    },
+  ) {
+    return this.lettersService.updateRequestMetadata(id, body);
+  }
+
   // ====== Media Library ======
   @Get('media')
   getMediaLibrary() {
