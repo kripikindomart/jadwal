@@ -63,8 +63,12 @@ const deleteRequest = (item: any) => {
   })
 }
 
-const printLetter = (req: any) => {
-  const route = router.resolve({ name: 'letters.print', params: { id: req.id } })
+const printLetter = (req: any, isPreview: boolean = false) => {
+  const route = router.resolve({ 
+    name: 'letters.print', 
+    params: { id: req.id },
+    query: isPreview ? { preview: 'true' } : {}
+  })
   window.open(route.href, '_blank')
 }
 
@@ -196,9 +200,9 @@ onMounted(fetchData)
                 class="px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-600 text-white hover:bg-gray-700 flex items-center gap-1.5">
                 Selesai
               </button>
-              <button v-if="req.status === 'APPROVED' || req.status === 'FINISHED'" @click="printLetter(req)"
+              <button @click="printLetter(req, req.status !== 'APPROVED' && req.status !== 'FINISHED')"
                 class="px-3 py-1.5 text-xs font-bold rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200 flex items-center gap-1.5">
-                <Printer class="w-3.5 h-3.5" /> Cetak Surat
+                <Printer class="w-3.5 h-3.5" /> {{ (req.status === 'APPROVED' || req.status === 'FINISHED') ? 'Cetak Surat' : 'Preview Surat' }}
               </button>
               <div class="flex-1"></div>
               <button @click="deleteRequest(req)"

@@ -25,9 +25,11 @@ const fetchRequestDetails = async () => {
     loading.value = false
     
     // Auto trigger print dialog after small delay to ensure rendering
-    setTimeout(() => {
-      window.print()
-    }, 500)
+    if (!route.query.preview) {
+      setTimeout(() => {
+        window.print()
+      }, 500)
+    }
   }
 }
 
@@ -176,13 +178,23 @@ onMounted(() => {
 
     <!-- Print Control Buttons (Hidden during actual printing) -->
     <div v-if="!loading" class="no-print print-controls">
-      <button onclick="window.print()" class="print-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
-        Cetak Dokumen
-      </button>
-      <button onclick="window.close()" class="close-btn">
-        Tutup
-      </button>
+      <template v-if="$route.query.preview">
+        <div class="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg border border-yellow-200 font-bold flex items-center gap-2">
+          Mode Preview
+        </div>
+        <button onclick="window.close()" class="close-btn border border-gray-300">
+          Tutup Preview
+        </button>
+      </template>
+      <template v-else>
+        <button onclick="window.print()" class="print-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+          Cetak Dokumen
+        </button>
+        <button onclick="window.close()" class="close-btn border border-gray-300">
+          Tutup
+        </button>
+      </template>
     </div>
   </div>
 </template>
