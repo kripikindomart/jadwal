@@ -11,8 +11,6 @@ const ticket = route.params.ticket as string
 const apiBase = import.meta.env.VITE_API_URL || '/api'
 const rootUrl = apiBase.replace(/\/api\/?$/, '') || ''
 
-const ticketLabel = ref(route.params.ticket as string || '')
-
 const requestData = ref<any>(null)
 const loading = ref(true)
 const error = ref('')
