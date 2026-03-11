@@ -29,18 +29,7 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-const s3Config = new S3Client({
-  forcePathStyle: true,
-  region: (process.env.SUPABASE_S3_REGION || 'ap-northeast-1').trim(),
-  endpoint: (
-    process.env.SUPABASE_S3_ENDPOINT ||
-    'https://thhtumfgfrcjuznfgmoy.storage.supabase.co/storage/v1/s3'
-  ).trim(),
-  credentials: {
-    accessKeyId: (process.env.SUPABASE_S3_ACCESS_KEY_ID || '').trim(),
-    secretAccessKey: (process.env.SUPABASE_S3_SECRET_ACCESS_KEY || '').trim(),
-  },
-});
+// S3 initialization removed from root scope
 
 @Controller('api/public-letters')
 @Public()
@@ -96,7 +85,20 @@ export class PublicLettersController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: multerS3({
-        s3: s3Config,
+        s3: new S3Client({
+          forcePathStyle: true,
+          region: (process.env.SUPABASE_S3_REGION || 'ap-northeast-1').trim(),
+          endpoint: (
+            process.env.SUPABASE_S3_ENDPOINT ||
+            'https://thhtumfgfrcjuznfgmoy.storage.supabase.co/storage/v1/s3'
+          ).trim(),
+          credentials: {
+            accessKeyId: (process.env.SUPABASE_S3_ACCESS_KEY_ID || '').trim(),
+            secretAccessKey: (
+              process.env.SUPABASE_S3_SECRET_ACCESS_KEY || ''
+            ).trim(),
+          },
+        }),
         bucket: (process.env.SUPABASE_S3_BUCKET || 'uploads').trim(),
         acl: 'public-read',
         contentType: multerS3.AUTO_CONTENT_TYPE,
