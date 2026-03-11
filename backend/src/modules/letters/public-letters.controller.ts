@@ -116,8 +116,8 @@ export class PublicLettersController {
     const supabaseUrl =
       process.env.SUPABASE_URL || 'https://thhtumfgfrcjuznfgmoy.supabase.co';
     const supabaseKey =
-      process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || '';
-    const bucket = (process.env.SUPABASE_S3_BUCKET || 'uploads').trim();
+      process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_ANON_KEY || '';
+    const bucket = (process.env.SUPABASE_BUCKET || 'uploads').trim();
 
     if (!supabaseKey) {
       throw new BadRequestException(
