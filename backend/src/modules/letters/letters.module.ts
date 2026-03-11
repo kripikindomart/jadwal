@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { LetterType } from '../../database/entities/letter-type.entity';
 import { LetterRequest } from '../../database/entities/letter-request.entity';
 import { LetterTemplate } from '../../database/entities/letter-template.entity';
+import { LetterClassification } from '../../database/entities/letter-classification.entity';
+import { LetterNumberCounter } from '../../database/entities/letter-number-counter.entity';
 import { Prodi } from '../../database/entities/prodi.entity';
 import { StudentProfile } from '../../database/entities/student-profile.entity';
 import { User } from '../../database/entities/user.entity';
@@ -18,6 +20,8 @@ import { PublicLettersController } from './public-letters.controller';
       LetterType,
       LetterTemplate,
       LetterRequest,
+      LetterClassification,
+      LetterNumberCounter,
       Prodi,
       StudentProfile,
       User,

@@ -13,6 +13,8 @@ import {
   LetterRequest,
   LetterRequestStatus,
 } from '../../database/entities/letter-request.entity';
+import { LetterClassification } from '../../database/entities/letter-classification.entity';
+import { LetterNumberCounter } from '../../database/entities/letter-number-counter.entity';
 import { Prodi } from '../../database/entities/prodi.entity';
 import { StudentProfile } from '../../database/entities/student-profile.entity';
 import { User } from '../../database/entities/user.entity';
@@ -38,6 +40,10 @@ export class LettersService {
     private readonly typeRepo: Repository<LetterType>,
     @InjectRepository(LetterRequest)
     private readonly requestRepo: Repository<LetterRequest>,
+    @InjectRepository(LetterClassification)
+    private readonly classificationRepo: Repository<LetterClassification>,
+    @InjectRepository(LetterNumberCounter)
+    private readonly counterRepo: Repository<LetterNumberCounter>,
     @InjectRepository(Prodi)
     private readonly prodiRepo: Repository<Prodi>,
     @InjectRepository(StudentProfile)
@@ -79,6 +85,51 @@ export class LettersService {
   async deleteTemplate(id: number) {
     const template = await this.findTemplateById(id);
     await this.templateRepo.remove(template);
+    return { success: true };
+  }
+
+  // ====== Letter Classifications (Admin) ======
+
+  async findAllClassifications() {
+    return this.classificationRepo.find({ order: { code: 'ASC' } });
+  }
+
+  async createClassification(dto: {
+    code: string;
+    name: string;
+    description?: string;
+  }) {
+    const existing = await this.classificationRepo.findOne({
+      where: { code: dto.code },
+    });
+    if (existing)
+      throw new BadRequestException(
+        `Kode klasifikasi "${dto.code}" sudah ada.`,
+      );
+    const classification = this.classificationRepo.create(dto);
+    return this.classificationRepo.save(classification);
+  }
+
+  async updateClassification(
+    id: number,
+    dto: { code?: string; name?: string; description?: string },
+  ) {
+    const classification = await this.classificationRepo.findOne({
+      where: { id },
+    });
+    if (!classification)
+      throw new NotFoundException('Klasifikasi tidak ditemukan');
+    Object.assign(classification, dto);
+    return this.classificationRepo.save(classification);
+  }
+
+  async deleteClassification(id: number) {
+    const classification = await this.classificationRepo.findOne({
+      where: { id },
+    });
+    if (!classification)
+      throw new NotFoundException('Klasifikasi tidak ditemukan');
+    await this.classificationRepo.remove(classification);
     return { success: true };
   }
 
@@ -144,7 +195,80 @@ export class LettersService {
     if (dto.adminNotes !== undefined) {
       request.adminNotes = dto.adminNotes;
     }
+
+    // Auto-generate nomor surat when approving (if not already set)
+    if (dto.status === LetterRequestStatus.APPROVED && !request.nomorSurat) {
+      try {
+        const generatedNumber = await this.generateLetterNumber(request);
+        if (generatedNumber) {
+          request.nomorSurat = generatedNumber;
+        }
+      } catch (e) {
+        console.error('Auto-number generation failed:', e);
+        // Don't block approval if auto-numbering fails
+      }
+    }
+
     return this.requestRepo.save(request);
+  }
+
+  /**
+   * Generate a letter number based on the letter type's classification and format.
+   */
+  private async generateLetterNumber(
+    request: LetterRequest,
+  ): Promise<string | null> {
+    const letterType = request.letterType;
+    if (!letterType || !letterType.classificationId) return null;
+
+    const classification =
+      letterType.classification ||
+      (await this.classificationRepo.findOne({
+        where: { id: letterType.classificationId },
+      }));
+    if (!classification) return null;
+
+    const year = new Date().getFullYear();
+
+    // Get or create counter
+    let counter = await this.counterRepo.findOne({
+      where: { classificationId: classification.id, year },
+    });
+    if (!counter) {
+      counter = this.counterRepo.create({
+        classificationId: classification.id,
+        year,
+        lastNumber: 0,
+      });
+    }
+    counter.lastNumber += 1;
+    await this.counterRepo.save(counter);
+
+    // Build the number from format
+    let format =
+      letterType.numberFormat || '{urut}/{klasifikasi}/SPs-UIKA/{tahun}';
+    const urut = counter.lastNumber.toString().padStart(3, '0');
+
+    // Get prodi code if needed
+    let prodiCode = '';
+    if (letterType.includeProdiCode && request.prodiId) {
+      const prodi =
+        request.prodi ||
+        (await this.prodiRepo.findOne({ where: { id: request.prodiId } }));
+      prodiCode = prodi?.code || '';
+    }
+
+    format = format.replace(/\{urut\}/gi, urut);
+    format = format.replace(/\{klasifikasi\}/gi, classification.code);
+    format = format.replace(/\{tahun\}/gi, year.toString());
+    format = format.replace(/\{prodi\}/gi, prodiCode);
+
+    // Clean up double slashes if prodi is empty
+    format = format.replace(/\/\//g, '/');
+    // Remove trailing slash
+    format = format.replace(/\/$/, '');
+
+    return format;
   }
 
   async deleteRequest(id: number) {

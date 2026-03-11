@@ -12,6 +12,7 @@ const toast = useToast()
 const confirm = useConfirm()
 
 const letterTypes = ref<any[]>([])
+const classifications = ref<any[]>([])
 const loading = ref(false)
 const isModalOpen = ref(false)
 const actionType = ref<'create' | 'edit'>('create')
@@ -28,11 +29,14 @@ const availableTemplates = ref<any[]>([])
 const availableTags = ref<string[]>([])
 const formFields = ref<any[]>([])
 
-const form = ref({
+const form = ref<any>({
   title: '',
   description: '',
   isActive: true,
   allowPreview: false,
+  classificationId: null,
+  numberFormat: '{urut}/{klasifikasi}/SPs-UIKA/{prodi}/{tahun}',
+  includeProdiCode: true,
 })
 
 const fetchData = async () => {
@@ -40,6 +44,8 @@ const fetchData = async () => {
   try {
     const res = await api.get('/letters/types')
     letterTypes.value = res.data
+    const classRes = await api.get('/letters/classifications')
+    classifications.value = classRes.data
     const tmpRes = await api.get('/letters/templates')
     availableTemplates.value = tmpRes.data
   } catch (e) {
@@ -58,10 +64,21 @@ const openModal = (type: 'create' | 'edit', item?: any) => {
       description: item.description || '',
       isActive: item.isActive,
       allowPreview: !!item.allowPreview,
+      classificationId: item.classification?.id || item.classificationId || null,
+      numberFormat: item.numberFormat || '{urut}/{klasifikasi}/SPs-UIKA/{prodi}/{tahun}',
+      includeProdiCode: item.includeProdiCode !== undefined ? item.includeProdiCode : true,
     }
   } else {
     selectedItem.value = null
-    form.value = { title: '', description: '', isActive: true, allowPreview: false }
+    form.value = { 
+      title: '', 
+      description: '', 
+      isActive: true, 
+      allowPreview: false,
+      classificationId: null,
+      numberFormat: '{urut}/{klasifikasi}/SPs-UIKA/{prodi}/{tahun}',
+      includeProdiCode: true,
+    }
   }
   isModalOpen.value = true
 }
@@ -268,7 +285,45 @@ onMounted(fetchData)
           <textarea v-model="form.description" rows="3" placeholder="Jelaskan persyaratan atau keterangan surat ini..."
             class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm resize-y"></textarea>
         </div>
-        <div class="space-y-3">
+        
+        <div class="border-t border-gray-200 pt-4 mt-4">
+          <h3 class="text-sm font-bold text-gray-900 mb-3">Penomoran Otomatis</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Klasifikasi Surat</label>
+              <select v-model="form.classificationId" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white">
+                <option :value="null">-- Tidak Ada / Manual --</option>
+                <option v-for="cls in classifications" :key="cls.id" :value="cls.id">
+                  {{ cls.code }} - {{ cls.name }}
+                </option>
+              </select>
+            </div>
+            
+            <div v-if="form.classificationId">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Format Nomor Surat</label>
+              <input v-model="form.numberFormat" type="text"
+                class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-mono" />
+              <div class="mt-2 text-xs text-gray-500 space-y-1">
+                <p>Variabel yang bisa digunakan:</p>
+                <div class="flex gap-2 flex-wrap">
+                  <span class="bg-gray-100 px-1 py-0.5 rounded text-gray-700 font-mono">{urut}</span>
+                  <span class="bg-gray-100 px-1 py-0.5 rounded text-gray-700 font-mono">{klasifikasi}</span>
+                  <span class="bg-gray-100 px-1 py-0.5 rounded text-gray-700 font-mono">{prodi}</span>
+                  <span class="bg-gray-100 px-1 py-0.5 rounded text-gray-700 font-mono">{tahun}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="flex items-center gap-3" v-if="form.classificationId">
+              <input type="checkbox" v-model="form.includeProdiCode" id="include-prodi" class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" />
+              <label for="include-prodi" class="text-sm font-medium text-gray-700 cursor-pointer">
+                Sertakan Singkatan Prodi (jika pemohon memiliki prodi)
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-gray-200 pt-4 mt-4 space-y-3">
           <div class="flex items-center gap-3 border bg-gray-50 p-3 rounded-xl border-gray-200">
             <input type="checkbox" v-model="form.isActive" id="letter-active" class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" />
             <div class="flex-1">

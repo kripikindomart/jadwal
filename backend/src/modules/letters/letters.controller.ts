@@ -9,6 +9,7 @@ import {
   Query,
   ParseIntPipe,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { LettersService } from './letters.service';
 import {
@@ -56,6 +57,33 @@ export class LettersController {
   @Delete('templates/:id')
   deleteTemplate(@Param('id', ParseIntPipe) id: number) {
     return this.lettersService.deleteTemplate(id);
+  }
+
+  // ====== Letter Classifications ======
+
+  @Get('classifications')
+  findAllClassifications() {
+    return this.lettersService.findAllClassifications();
+  }
+
+  @Post('classifications')
+  createClassification(
+    @Body() dto: { code: string; name: string; description?: string },
+  ) {
+    return this.lettersService.createClassification(dto);
+  }
+
+  @Patch('classifications/:id')
+  updateClassification(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: { code?: string; name?: string; description?: string },
+  ) {
+    return this.lettersService.updateClassification(id, dto);
+  }
+
+  @Delete('classifications/:id')
+  deleteClassification(@Param('id', ParseIntPipe) id: number) {
+    return this.lettersService.deleteClassification(id);
   }
 
   // ====== Letter Types ======

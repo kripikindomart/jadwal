@@ -21,6 +21,7 @@ import {
   Key,
   ClipboardList,
   Mail,
+  Tags,
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -93,6 +94,7 @@ const menuItems = computed(() => {
 
   // Layanan Surat
   const letterChildren: any[] = []
+  letterChildren.push({ label: 'Klasifikasi Kode', to: '/letters/classifications', icon: Tags })
   letterChildren.push({ label: 'Jenis Surat', to: '/letters', icon: Mail })
   letterChildren.push({ label: 'Template Surat', to: '/letters/templates', icon: Mail })
   letterChildren.push({ label: 'Inbox Pengajuan', to: '/letters/requests', icon: Mail })

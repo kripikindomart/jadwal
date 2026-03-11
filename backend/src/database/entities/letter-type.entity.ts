@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { LetterRequest } from './letter-request.entity';
 import { LetterTemplate } from './letter-template.entity';
+import { LetterClassification } from './letter-classification.entity';
 
 @Entity('letter_types')
 export class LetterType {
@@ -48,6 +49,28 @@ export class LetterType {
   })
   @JoinColumn({ name: 'templateId' })
   template: LetterTemplate;
+
+  // Classification for auto-numbering
+  @Column({ nullable: true })
+  classificationId: number;
+
+  @ManyToOne(() => LetterClassification, {
+    nullable: true,
+    onDelete: 'SET NULL',
+    eager: true,
+  })
+  @JoinColumn({ name: 'classificationId' })
+  classification: LetterClassification;
+
+  @Column({
+    type: 'varchar',
+    nullable: true,
+    default: '{urut}/{klasifikasi}/SPs-UIKA/{prodi}/{tahun}',
+  })
+  numberFormat: string;
+
+  @Column({ default: true })
+  includeProdiCode: boolean;
 
   @OneToMany(() => LetterRequest, (r: LetterRequest) => r.letterType)
   requests: LetterRequest[];

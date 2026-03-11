@@ -176,6 +176,7 @@ onMounted(fetchData)
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1">
                 <span class="font-mono text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">{{ req.ticketNumber }}</span>
+                <span v-if="req.nomorSurat" class="font-mono text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">{{ req.nomorSurat }}</span>
                 <span :class="statusLabels[req.status]?.class || 'bg-gray-100 text-gray-500'"
                   class="px-2.5 py-0.5 rounded-full text-[11px] font-bold">
                   {{ statusLabels[req.status]?.label || req.status }}

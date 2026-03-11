@@ -231,6 +231,12 @@ const router = createRouter({
       meta: { layout: "admin" },
     },
     {
+      path: "/letters/classifications",
+      name: "letters.classifications",
+      component: () => import("@/pages/letters/LetterClassificationsPage.vue"),
+      meta: { layout: "admin" },
+    },
+    {
       path: "/letters/templates",
       name: "letters.templates",
       component: () => import("@/pages/letters/LetterTemplatesPage.vue"),
