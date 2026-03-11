@@ -113,6 +113,17 @@ export class LettersController {
     return this.lettersService.deleteRequest(id);
   }
 
+  @Patch('requests/:id/data')
+  updateRequestData(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { submittedData: any },
+  ) {
+    if (!body || !body.submittedData) {
+      throw new BadRequestException('Data isian form tidak valid');
+    }
+    return this.lettersService.updateRequestData(id, body.submittedData);
+  }
+
   // ====== Media Library ======
   @Get('media')
   getMediaLibrary() {

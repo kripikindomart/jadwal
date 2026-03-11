@@ -1122,23 +1122,22 @@ const mappedHtmlPreview = computed(() => {
               
               <div class="flex-1 overflow-auto bg-gray-100 p-2 flex justify-center">
                 <!-- A4 Paper Simulation -->
-                <div class="bg-white shadow-lg print:shadow-none w-[210mm] min-h-[297mm] relative print:w-full print:m-0 print:p-0 shrink-0"
+                <div class="bg-white shadow-lg print:shadow-none w-[210mm] min-h-[297mm] pt-[0.5cm] px-[1.5cm] pb-[1cm] relative print:w-full print:m-0 print:p-0 shrink-0"
                      :style="{ transform: `scale(${previewZoom})`, transformOrigin: 'top center', marginBottom: `-${(1 - previewZoom) * 100}%` }">
                   <!-- Header Image -->
-                  <div v-if="selectedLetterType.template.headerImageUrl" class="text-center">
-                    <img :src="rootUrl + selectedLetterType.template.headerImageUrl" alt="Kop Surat" class="w-full h-auto block" />
+                  <div v-if="selectedLetterType.template.headerImageUrl" class="mb-4 border-b-2 border-black pb-4 text-center">
+                    <img :src="rootUrl + selectedLetterType.template.headerImageUrl" alt="Kop Surat" class="max-w-full max-h-32 mx-auto" />
                   </div>
                   
                   <!-- Note: If there is no specific header image, we display default text header just for visual cue -->
-                  <div v-else class="mb-8 border-b-2 border-black pb-4 px-[1.5cm] pt-[1.5cm] text-center text-sm font-serif">
+                  <div v-else class="mb-4 border-b-2 border-black pb-4 text-center text-sm font-serif">
                      <h1 class="font-bold text-lg">SEKOLAH PASCASARJANA</h1>
                      <h2 class="font-bold text-md">UNIVERSITAS IBN KHALDUN BOGOR</h2>
                      <p>Jl. KH. Sholeh Iskandar, Kota Bogor</p>
                   </div>
 
-                  <div class="px-[1.5cm] pt-[0.5cm] pb-[1cm]">
-                    <!-- Document Content -->
-                    <div class="prose prose-sm sm:prose-base max-w-none text-black prose-p:my-1.5 prose-headings:my-3" v-html="mappedHtmlPreview"></div>
+                  <!-- Document Content -->
+                  <div class="prose prose-sm sm:prose-base max-w-none text-black prose-p:my-1.5 prose-headings:my-3" v-html="mappedHtmlPreview"></div>
 
                   <!-- Signature Section & Tembusan -->
                   <div class="mt-16 text-sm text-black">
@@ -1169,7 +1168,6 @@ const mappedHtmlPreview = computed(() => {
                        <p class="whitespace-pre-wrap text-black">{{ selectedLetterType.template.tembusanText }}</p>
                     </div>
                   </div>
-                  </div> <!-- End Content Wrapper -->
                 </div>
               </div>
             </div>

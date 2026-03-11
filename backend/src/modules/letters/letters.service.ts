@@ -131,7 +131,7 @@ export class LettersService {
   async findRequestById(id: number) {
     const request = await this.requestRepo.findOne({
       where: { id },
-      relations: ['letterType', 'letterType.template'],
+      relations: ['letterType', 'letterType.template', 'prodi'],
     });
     if (!request)
       throw new NotFoundException('Pengajuan surat tidak ditemukan');
@@ -150,6 +150,12 @@ export class LettersService {
   async deleteRequest(id: number) {
     const request = await this.findRequestById(id);
     return this.requestRepo.remove(request);
+  }
+
+  async updateRequestData(id: number, submittedData: any) {
+    const request = await this.findRequestById(id);
+    request.submittedData = submittedData;
+    return this.requestRepo.save(request);
   }
 
   // ====== Media Library ======
@@ -520,7 +526,7 @@ export class LettersService {
   async getApprovedRequestData(ticketNumber: string) {
     const request = await this.requestRepo.findOne({
       where: { ticketNumber },
-      relations: ['letterType', 'letterType.template'],
+      relations: ['letterType', 'letterType.template', 'prodi'],
     });
 
     if (!request) {
