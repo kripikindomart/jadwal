@@ -32,6 +32,11 @@
     "vue-router": "^4.6.4",
     "xlsx": "^0.18.5"
   },
+  "overrides": {
+    "quill-blot-formatter": {
+      "quill": "$quill"
+    }
+  },
   "devDependencies": {
     "@types/lodash-es": "^4.17.12",
     "@types/node": "^24.10.1",
