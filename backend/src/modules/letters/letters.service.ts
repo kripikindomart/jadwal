@@ -391,8 +391,7 @@ export class LettersService {
     if (search) {
       qb.andWhere('user.name ILIKE :s', { s: `%${search}%` });
     }
-
-    qb.orderBy('user.name', 'ASC').take(50);
+    qb.orderBy('user.name', 'ASC');
 
     const profiles = await qb.getMany();
     return profiles.map((lp) => ({
