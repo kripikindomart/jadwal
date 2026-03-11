@@ -285,6 +285,25 @@ body, html {
     margin: 0;
     /* Use exact padding for print */
     padding: 0.5cm 1.5cm;
+    /* Attempt to coerce everything onto one page if possible */
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  /* Aggressively prevent breaking signature/footer apart from the text */
+  .print-content > div:last-child {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  /* Scale down slightly if content is too long */
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   
   .no-print {
