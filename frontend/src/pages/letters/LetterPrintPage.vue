@@ -235,6 +235,15 @@ body, html {
   padding: 0.5cm 1.5cm;
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
   box-sizing: border-box;
+  color: #000;
+}
+
+.print-content * {
+  color: #000 !important;
+}
+
+.print-content table td, .print-content table th {
+  vertical-align: top;
 }
 
 /* Controls */

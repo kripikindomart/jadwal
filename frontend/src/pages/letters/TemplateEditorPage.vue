@@ -78,7 +78,7 @@ const editorInit = {
     'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
     'insertdatetime', 'media', 'table', 'help', 'wordcount'
   ],
-  toolbar: 'undo redo | blocks | ' +
+  toolbar: 'undo redo | fontfamily fontsize blocks | ' +
     'bold italic underline strikethrough | alignleft aligncenter ' +
     'alignright alignjustify | table tablecellprops tablerowprops | bullist numlist outdent indent | ' +
     'removeformat | image | fullscreen code',
@@ -86,9 +86,9 @@ const editorInit = {
     ${contentCss}
     ${contentUiCss}
     
-    body { font-family:Helvetica,Arial,sans-serif; font-size:14px; padding: 1cm 1.5cm; min-height: 800px; }
+    body { font-family:Helvetica,Arial,sans-serif; font-size:12pt; padding: 1cm 1.5cm; min-height: 800px; color: #000; }
     table { width: 100%; border-collapse: collapse; }
-    table td, table th { border: 1px solid #ccc; padding: 8px; position: relative; }
+    table td, table th { border: 1px solid #ccc; padding: 8px; position: relative; vertical-align: top; }
     td, th { min-width: 30px; }
     .mce-resize-bar-row { cursor: row-resize !important; }
     .mce-resize-bar-col { cursor: col-resize !important; }
@@ -137,8 +137,8 @@ const insertTable = () => {
   const tableHtml = `
     <table style="width:100%; border-collapse:collapse; margin:12px auto;">
       <tbody>
-        <tr><td style="border:1px solid #999; padding:6px 10px;">&nbsp;</td><td style="border:1px solid #999; padding:6px 10px;">&nbsp;</td><td style="border:1px solid #999; padding:6px 10px;">&nbsp;</td></tr>
-        <tr><td style="border:1px solid #999; padding:6px 10px;">&nbsp;</td><td style="border:1px solid #999; padding:6px 10px;">&nbsp;</td><td style="border:1px solid #999; padding:6px 10px;">&nbsp;</td></tr>
+        <tr><td style="border:1px solid #999; padding:6px 10px; vertical-align: top;">&nbsp;</td><td style="border:1px solid #999; padding:6px 10px; vertical-align: top;">&nbsp;</td><td style="border:1px solid #999; padding:6px 10px; vertical-align: top;">&nbsp;</td></tr>
+        <tr><td style="border:1px solid #999; padding:6px 10px; vertical-align: top;">&nbsp;</td><td style="border:1px solid #999; padding:6px 10px; vertical-align: top;">&nbsp;</td><td style="border:1px solid #999; padding:6px 10px; vertical-align: top;">&nbsp;</td></tr>
       </tbody>
     </table><p><br/></p>`
   activeEditorInstance.insertContent(tableHtml)
@@ -150,9 +150,9 @@ const insertTableBorderless = () => {
   const tableHtml = `
     <table style="width:100%; border-collapse:collapse; margin:12px auto; border: none;">
       <tbody>
-        <tr><td style="padding:4px 8px; width:30%; border:none;">Nama</td><td style="padding:4px 8px; width:3%; border:none;">:</td><td style="padding:4px 8px; border:none;">[nama]</td></tr>
-        <tr><td style="padding:4px 8px; border:none;">NIM</td><td style="padding:4px 8px; border:none;">:</td><td style="padding:4px 8px; border:none;">[nim]</td></tr>
-        <tr><td style="padding:4px 8px; border:none;">Program Studi</td><td style="padding:4px 8px; border:none;">:</td><td style="padding:4px 8px; border:none;">[prodi]</td></tr>
+        <tr><td style="padding:4px 8px; width:30%; border:none; vertical-align: top;">Nama</td><td style="padding:4px 8px; width:3%; border:none; vertical-align: top;">:</td><td style="padding:4px 8px; border:none; vertical-align: top;">[nama]</td></tr>
+        <tr><td style="padding:4px 8px; border:none; vertical-align: top;">NIM</td><td style="padding:4px 8px; border:none; vertical-align: top;">:</td><td style="padding:4px 8px; border:none; vertical-align: top;">[nim]</td></tr>
+        <tr><td style="padding:4px 8px; border:none; vertical-align: top;">Program Studi</td><td style="padding:4px 8px; border:none; vertical-align: top;">:</td><td style="padding:4px 8px; border:none; vertical-align: top;">[prodi]</td></tr>
       </tbody>
     </table><p><br/></p>`
   activeEditorInstance.insertContent(tableHtml)
@@ -160,6 +160,35 @@ const insertTableBorderless = () => {
 }
 
 // ========== MEDIA & HEADER ===========
+const insertHeaderLayout = () => {
+  if (!activeEditorInstance) return
+  const tableHtml = `
+    <table style="width:100%; border-collapse:collapse; margin-bottom:20px; border: none;">
+      <tbody>
+        <tr>
+          <td style="padding:4px 0; width:15%; border:none; vertical-align: top;">Nomor</td>
+          <td style="padding:4px 8px; width:3%; border:none; vertical-align: top;">:</td>
+          <td style="padding:4px 0; width:42%; border:none; vertical-align: top;">[nomor_surat]</td>
+          <td style="padding:4px 0; width:40%; border:none; vertical-align: top; text-align: right;">Bogor, [tanggal_surat]</td>
+        </tr>
+        <tr>
+          <td style="padding:4px 0; border:none; vertical-align: top;">Lampiran</td>
+          <td style="padding:4px 8px; border:none; vertical-align: top;">:</td>
+          <td style="padding:4px 0; border:none; vertical-align: top;">[lampiran]</td>
+          <td style="padding:4px 0; border:none;"></td>
+        </tr>
+        <tr>
+          <td style="padding:4px 0; border:none; vertical-align: top;">Perihal</td>
+          <td style="padding:4px 8px; border:none; vertical-align: top;">:</td>
+          <td style="padding:4px 0; border:none; vertical-align: top;">[perihal]</td>
+          <td style="padding:4px 0; border:none;"></td>
+        </tr>
+      </tbody>
+    </table><p><br/></p>`
+  activeEditorInstance.insertContent(tableHtml)
+  toast.success('Layout Nomor & Tanggal (Kop) disisipkan!')
+}
+
 const openHeaderMediaLibrary = () => {
   mediaLibraryTarget.value = 'header'
   isMediaLibraryOpen.value = true
@@ -281,6 +310,11 @@ const insertVariable = (tag: string) => {
         class="px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded text-xs font-medium transition-colors border border-teal-200 flex items-center gap-1"
         title="Sisipkan tabel identitas tanpa border (Nama:, NIM:, Prodi:)">
         <LayoutList class="w-3.5 h-3.5" /> Layout Identitas
+      </button>
+      <button @click="insertHeaderLayout"
+        class="px-2.5 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded text-xs font-medium transition-colors border border-orange-200 flex items-center gap-1"
+        title="Sisipkan tabel untuk Kop Surat (Nomor, Lampiran, Perihal, & Tanggal)">
+        <LayoutList class="w-3.5 h-3.5" /> Layout Kop
       </button>
 
       <span class="h-4 w-px bg-gray-300 mx-1"></span>
