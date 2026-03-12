@@ -23,6 +23,10 @@ export class CreateLetterTemplateDto {
 
   @IsString()
   @IsOptional()
+  editorType?: 'tinymce' | 'tiptap';
+
+  @IsString()
+  @IsOptional()
   signatureImageUrl?: string;
 
   @IsString()
@@ -70,6 +74,10 @@ export class UpdateLetterTemplateDto {
   @IsString()
   @IsOptional()
   headerHtmlContent?: string;
+
+  @IsString()
+  @IsOptional()
+  editorType?: 'tinymce' | 'tiptap';
 
   @IsString()
   @IsOptional()

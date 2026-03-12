@@ -49,6 +49,9 @@ export class LetterTemplate {
   @Column({ type: 'text', nullable: true })
   headerHtmlContent: string;
 
+  @Column({ type: 'varchar', length: 20, default: 'tinymce' })
+  editorType: 'tinymce' | 'tiptap';
+
   @OneToMany(() => LetterType, (lt: LetterType) => lt.template)
   letterTypes: LetterType[];
 

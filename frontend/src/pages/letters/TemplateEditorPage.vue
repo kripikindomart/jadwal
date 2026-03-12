@@ -35,6 +35,7 @@ import contentCss from 'tinymce/skins/content/default/content.css?raw'
 import contentUiCss from 'tinymce/skins/ui/oxide/content.css?raw'
 
 import MediaLibraryModal from './MediaLibraryModal.vue'
+import TiptapEditor from './TiptapEditor.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -48,6 +49,7 @@ const templateData = ref<any>({
   htmlContent: '',
   headerImageUrl: '',
   headerMode: 'image',
+  editorType: 'tinymce',
   headerHtmlContent: '',
   signatureImageUrl: '',
   signatureName: '',
@@ -61,6 +63,9 @@ const templateData = ref<any>({
 const isMediaLibraryOpen = ref(false)
 const mediaLibraryTarget = ref<'editor' | 'header' | 'signature'>('editor')
 let activeEditorInstance: any = null
+const tiptapEditorRef = ref<any>(null)
+// @ts-ignore - used as template ref
+const tiptapHeaderEditorRef = ref<any>(null)
 
 const editorInit = {
   height: 800,
@@ -214,6 +219,7 @@ const saveContent = async () => {
       htmlContent: templateData.value.htmlContent,
       headerImageUrl: templateData.value.headerImageUrl,
       headerMode: templateData.value.headerMode || 'image',
+      editorType: templateData.value.editorType || 'tinymce',
       headerHtmlContent: templateData.value.headerHtmlContent || '',
       signatureImageUrl: templateData.value.signatureImageUrl,
       signatureName: templateData.value.signatureName,
@@ -239,7 +245,10 @@ const handleMediaSelect = (url: string) => {
     templateData.value.signatureImageUrl = url
     toast.success('Tanda tangan berhasil diperbarui!')
   } else if (mediaLibraryTarget.value === 'editor') {
-    if (activeEditorInstance) {
+    if (templateData.value.editorType === 'tiptap' && tiptapEditorRef.value?.editor) {
+      tiptapEditorRef.value.editor.chain().focus().setImage({ src: url }).run()
+      toast.success('Gambar berhasil ditambahkan ke editor Tiptap!')
+    } else if (activeEditorInstance) {
       activeEditorInstance.insertContent(`<img src="${url}" style="max-width:100%; height:auto;" />`)
       toast.success('Gambar berhasil ditambahkan ke editor!')
     }
@@ -268,7 +277,10 @@ const standardVariables = [
 ]
 
 const insertVariable = (tag: string) => {
-  if (activeEditorInstance) {
+  if (templateData.value.editorType === 'tiptap' && tiptapEditorRef.value?.editor) {
+    tiptapEditorRef.value.editor.chain().focus().insertContent(tag).run()
+    toast.success(`Variabel ${tag} disisipkan!`)
+  } else if (activeEditorInstance) {
     activeEditorInstance.insertContent(tag)
     toast.success(`Variabel ${tag} disisipkan!`)
   }
@@ -288,6 +300,11 @@ const insertVariable = (tag: string) => {
           <h1 class="text-xl font-bold text-gray-900">
             Editor Template: {{ templateData.title || 'Memuat...' }}
           </h1>
+          <div class="flex items-center gap-2 mt-1 mb-1">
+            <span class="text-xs font-semibold text-gray-500">Mode Editor:</span>
+            <button @click="templateData.editorType = 'tinymce'" :class="templateData.editorType === 'tinymce' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'" class="px-2 py-1 rounded text-xs font-medium">TinyMCE (Classic)</button>
+            <button @click="templateData.editorType = 'tiptap'" :class="templateData.editorType === 'tiptap' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'" class="px-2 py-1 rounded text-xs font-medium">TipTap (Modern & Bebas)</button>
+          </div>
           <p class="text-sm text-gray-500">Gunakan tag dinamis: <code>[nama]</code>, <code>[nim]</code>, <code>[prodi]</code>, <code>[tanggal_surat]</code></p>
         </div>
       </div>
@@ -362,10 +379,17 @@ const insertVariable = (tag: string) => {
            <div class="w-full max-w-2xl">
              <p class="text-xs text-gray-500 mb-2">Ketik dan format Kop Surat secara manual di editor di bawah ini:</p>
              <div class="border border-gray-200 rounded-lg overflow-hidden">
-               <Editor
-                 v-model="templateData.headerHtmlContent"
-                 :init="headerEditorInit"
-               />
+               <TiptapEditor 
+                  v-if="templateData.editorType === 'tiptap'"
+                  ref="tiptapHeaderEditorRef"
+                  v-model="templateData.headerHtmlContent" 
+                  min-height="200px" 
+                />
+                <Editor
+                  v-else
+                  v-model="templateData.headerHtmlContent"
+                  :init="headerEditorInit"
+                />
              </div>
            </div>
          </template>
@@ -379,7 +403,14 @@ const insertVariable = (tag: string) => {
          <div class="w-full max-w-[21cm] shadow flex flex-col">
             <!-- Editor Wrapper -->
             <div class="document-container w-full bg-white">
+              <TiptapEditor 
+                v-if="templateData.editorType === 'tiptap'"
+                ref="tiptapEditorRef"
+                v-model="templateData.htmlContent" 
+                min-height="800px" 
+              />
               <Editor
+                v-else
                 v-model="templateData.htmlContent"
                 :init="editorInit"
                 class="min-h-[800px]"
