@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useToast } from '@/composables/useToast'
 import api from '@/lib/api'
@@ -66,6 +66,17 @@ let activeEditorInstance: any = null
 const tiptapEditorRef = ref<any>(null)
 // @ts-ignore - used as template ref
 const tiptapHeaderEditorRef = ref<any>(null)
+const editorSwitching = ref(false)
+
+const switchEditor = async (type: 'tinymce' | 'tiptap') => {
+  if (templateData.value.editorType === type) return
+  editorSwitching.value = true
+  activeEditorInstance = null
+  await nextTick()
+  templateData.value.editorType = type
+  await nextTick()
+  setTimeout(() => { editorSwitching.value = false }, 300)
+}
 
 const editorInit = {
   height: 800,
@@ -302,8 +313,8 @@ const insertVariable = (tag: string) => {
           </h1>
           <div class="flex items-center gap-2 mt-1 mb-1">
             <span class="text-xs font-semibold text-gray-500">Mode Editor:</span>
-            <button @click="templateData.editorType = 'tinymce'" :class="templateData.editorType === 'tinymce' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'" class="px-2 py-1 rounded text-xs font-medium">TinyMCE (Classic)</button>
-            <button @click="templateData.editorType = 'tiptap'" :class="templateData.editorType === 'tiptap' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'" class="px-2 py-1 rounded text-xs font-medium">TipTap (Modern & Bebas)</button>
+            <button @click="switchEditor('tinymce')" :class="templateData.editorType === 'tinymce' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'" class="px-2 py-1 rounded text-xs font-medium" :disabled="editorSwitching">TinyMCE (Classic)</button>
+            <button @click="switchEditor('tiptap')" :class="templateData.editorType === 'tiptap' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'" class="px-2 py-1 rounded text-xs font-medium" :disabled="editorSwitching">TipTap (Modern & Bebas)</button>
           </div>
           <p class="text-sm text-gray-500">Gunakan tag dinamis: <code>[nama]</code>, <code>[nim]</code>, <code>[prodi]</code>, <code>[tanggal_surat]</code></p>
         </div>
@@ -395,14 +406,14 @@ const insertVariable = (tag: string) => {
          </template>
        </div>
 
-       <div v-if="loading" class="flex-1 flex items-center justify-center text-gray-400">
-          Memuat Editor...
-       </div>
-       <div v-else class="w-full relative flex-1 flex flex-col bg-gray-100 items-center">
-         
-         <div class="w-full max-w-[21cm] shadow flex flex-col">
+       <div v-if="loading || editorSwitching" class="flex-1 flex items-center justify-center text-gray-400">
+           {{ editorSwitching ? 'Mengganti editor...' : 'Memuat Editor...' }}
+        </div>
+        <div v-else class="w-full relative flex-1 flex flex-col bg-gray-100 items-center">
+          
+          <div class="w-full max-w-[21cm] shadow flex flex-col">
             <!-- Editor Wrapper -->
-            <div class="document-container w-full bg-white">
+            <div class="document-container w-full bg-white" :key="'main-' + templateData.editorType">
               <TiptapEditor 
                 v-if="templateData.editorType === 'tiptap'"
                 ref="tiptapEditorRef"
@@ -416,7 +427,7 @@ const insertVariable = (tag: string) => {
                 class="min-h-[800px]"
               />
             </div>
-         </div>
+          </div>
 
          <!-- Bottom Section: Signature + Tembusan side by side -->
          <div class="mt-8 flex flex-wrap gap-4 w-full max-w-[21cm]">
