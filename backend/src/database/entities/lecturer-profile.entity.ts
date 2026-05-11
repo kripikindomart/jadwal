@@ -29,6 +29,9 @@ export class LecturerProfile {
   nip: string;
 
   @Column({ nullable: true })
+  nik: string;
+
+  @Column({ nullable: true })
   frontTitle: string;
 
   @Column({ nullable: true })

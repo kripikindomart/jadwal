@@ -58,7 +58,7 @@ export class ProdisController {
       perPage ? +perPage : 10,
       where,
       order,
-      undefined,
+      ['ketuaProdi', 'ketuaProdi.lecturerProfile'],
       false,
       status || 'active',
     );

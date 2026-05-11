@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '@/lib/api'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import DataTable, { type Column } from '@/components/ui/DataTable.vue'
 import ModalForm from '@/components/ui/ModalForm.vue'
 import StatsCard from '@/components/ui/StatsCard.vue'
-import { Plus, Edit2, Trash2, RotateCcw, AlertTriangle, GraduationCap, Archive, LayoutList } from 'lucide-vue-next'
+import MediaLibraryModal from '@/pages/letters/MediaLibraryModal.vue'
+import SearchableSelect from '@/components/ui/SearchableSelect.vue'
+import { Plus, Edit2, Trash2, RotateCcw, AlertTriangle, GraduationCap, Archive, LayoutList, Image as ImageIcon, X } from 'lucide-vue-next'
 
 const toast = useToast()
 const confirm = useConfirm()
@@ -32,7 +34,38 @@ const columns: Column[] = [
   { key: 'code', label: 'Kode', sortable: true },
   { key: 'name', label: 'Nama Program Studi', sortable: true },
   { key: 'degree', label: 'Jenjang', sortable: true },
+  { key: 'ketuaProdi', label: 'Ketua Prodi', sortable: false },
 ]
+
+// Lecturers for dropdown
+const lecturers = ref<any[]>([])
+
+const fetchLecturers = async () => {
+  try {
+    const { data } = await api.get('/lecturers', { params: { perPage: 999, status: 'active' } })
+    lecturers.value = data.data || []
+  } catch (err) {
+    console.error('Failed to fetch lecturers', err)
+  }
+}
+
+// Computed options for SearchableSelect
+const lecturerOptions = computed(() => {
+  return lecturers.value.map((lec: any) => {
+    const front = lec.frontTitle ? lec.frontTitle + ' ' : ''
+    const back = lec.backTitle ? ', ' + lec.backTitle : ''
+    const label = `${front}${lec.name}${back}`
+    const searchText = `${lec.name} ${lec.nidn || ''} ${lec.nip || ''} ${lec.nik || ''} ${lec.email || ''}`
+    return { label, value: lec.id, searchText }
+  })
+})
+
+// Media Library
+const isMediaLibraryOpen = ref(false)
+const handleMediaSelect = (url: string) => {
+  form.value.signatureUrl = url
+  toast.success('Tanda tangan berhasil dipilih!')
+}
 
 // Modal Form State
 const isModalOpen = ref(false)
@@ -41,7 +74,9 @@ const editingId = ref<number | null>(null)
 const form = ref({
   code: '',
   name: '',
-  degree: 'S2'
+  degree: 'S2',
+  ketuaProdiId: null as number | null,
+  signatureUrl: ''
 })
 
 async function fetchData(p = page.value) {
@@ -67,7 +102,10 @@ async function fetchData(p = page.value) {
   }
 }
 
-onMounted(() => fetchData())
+onMounted(() => {
+  fetchData()
+  fetchLecturers()
+})
 
 function handleSort(key: string, dir: 'asc' | 'desc' | null) {
   sortKey.value = key
@@ -86,7 +124,7 @@ function handleTabChange(tab: string) {
 // CRUD Actions
 function openAddModal() {
   editingId.value = null
-  form.value = { code: '', name: '', degree: 'S2' }
+  form.value = { code: '', name: '', degree: 'S2', ketuaProdiId: null, signatureUrl: '' }
   isModalOpen.value = true
 }
 
@@ -95,7 +133,9 @@ function openEditModal(item: any) {
   form.value = {
     code: item.code,
     name: item.name,
-    degree: item.degree
+    degree: item.degree,
+    ketuaProdiId: item.ketuaProdiId || null,
+    signatureUrl: item.signatureUrl || ''
   }
   isModalOpen.value = true
 }
@@ -103,11 +143,16 @@ function openEditModal(item: any) {
 async function handleSubmit() {
   try {
     isSubmitting.value = true
+    const payload = {
+      ...form.value,
+      ketuaProdiId: form.value.ketuaProdiId || null,
+      signatureUrl: form.value.signatureUrl || null
+    }
     if (editingId.value) {
-      await api.patch(`/prodis/${editingId.value}`, form.value)
+      await api.patch(`/prodis/${editingId.value}`, payload)
       toast.success('Berhasil', 'Program Studi berhasil diperbarui')
     } else {
-      await api.post('/prodis', form.value)
+      await api.post('/prodis', payload)
       toast.success('Berhasil', 'Program Studi baru ditambahkan')
     }
     isModalOpen.value = false
@@ -180,6 +225,16 @@ async function performBulkAction(action: string) {
       }
     }
   })
+}
+
+// Helper to get lecturer display name
+function getKetuaName(item: any) {
+  if (!item.ketuaProdi) return '-'
+  const user = item.ketuaProdi
+  const lp = user.lecturerProfile
+  const front = lp?.frontTitle ? `${lp.frontTitle} ` : ''
+  const back = lp?.backTitle ? `, ${lp.backTitle}` : ''
+  return `${front}${user.name}${back}`
 }
 </script>
 
@@ -265,6 +320,13 @@ async function performBulkAction(action: string) {
         </span>
       </template>
 
+      <template #cell(ketuaProdi)="{ item }">
+        <div class="flex items-center gap-2">
+          <img v-if="item.signatureUrl" :src="item.signatureUrl" alt="TTD" class="h-8 w-auto object-contain rounded border border-slate-200 mix-blend-multiply" />
+          <span class="text-sm text-slate-700">{{ getKetuaName(item) }}</span>
+        </div>
+      </template>
+
       <!-- Actions Slot -->
       <template #actions="{ item }">
         <div class="flex items-center justify-end gap-2">
@@ -345,7 +407,40 @@ async function performBulkAction(action: string) {
             <option value="S3">S3 (Doktor)</option>
           </select>
         </div>
+
+        <!-- Ketua Prodi -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Ketua Program Studi</label>
+          <SearchableSelect
+            v-model="form.ketuaProdiId"
+            :options="lecturerOptions"
+            placeholder="Cari nama dosen, NIK, NIDN..."
+            clearable
+          />
+          <p class="text-xs text-slate-400 mt-1">Pilih dosen sebagai Ketua Program Studi.</p>
+        </div>
+
+        <!-- Tanda Tangan Ketua Prodi -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Tanda Tangan Ketua Prodi</label>
+          <div v-if="form.signatureUrl" class="relative group mb-2 inline-block">
+            <img :src="form.signatureUrl" alt="TTD Ketua Prodi" class="h-24 w-auto object-contain rounded-lg border border-slate-200 bg-white p-2 mix-blend-multiply" />
+            <button @click="form.signatureUrl = ''" type="button"
+              class="absolute -top-2 -right-2 w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-rose-600">
+              <X class="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <button type="button" @click="isMediaLibraryOpen = true"
+            class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-xl border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+            <ImageIcon class="w-4 h-4" />
+            {{ form.signatureUrl ? 'Ganti TTD' : 'Pilih dari Pustaka Media' }}
+          </button>
+          <p class="text-xs text-slate-400 mt-1">Upload gambar tanda tangan Ketua Prodi.</p>
+        </div>
       </div>
     </ModalForm>
+
+    <!-- Media Library Modal -->
+    <MediaLibraryModal v-model="isMediaLibraryOpen" @select="handleMediaSelect" />
   </div>
 </template>

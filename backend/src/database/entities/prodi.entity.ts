@@ -5,7 +5,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   DeleteDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { User } from './user.entity';
 
 @Entity('prodis')
 export class Prodi {
@@ -21,6 +24,12 @@ export class Prodi {
   @Column()
   degree: string; // 'S2' | 'S3'
 
+  @Column({ nullable: true })
+  ketuaProdiId: number;
+
+  @Column({ nullable: true })
+  signatureUrl: string;
+
   @CreateDateColumn()
   createdAt: Date;
 
@@ -29,4 +38,8 @@ export class Prodi {
 
   @DeleteDateColumn()
   deletedAt: Date;
+
+  @ManyToOne(() => User, { nullable: true, eager: false })
+  @JoinColumn({ name: 'ketuaProdiId' })
+  ketuaProdi: User;
 }

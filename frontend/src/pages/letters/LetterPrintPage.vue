@@ -79,7 +79,7 @@ const compiledHTML = computed(() => {
       if (formData.metadata.showPerihal) metadataRows.push({ label: 'Perihal', tag: '[perihal]' })
 
       if (metadataRows.length > 0) {
-        let metaHtml = `<table style="width:100%; border-collapse:collapse; margin-bottom:20px; border: none; font-family: ${globalFontFamily}; font-size: ${globalFontSize}pt;"><tbody>`
+        let metaHtml = `<table style="width:100%; border-collapse:collapse; margin-bottom:8px; border: none; font-family: ${globalFontFamily}; font-size: ${globalFontSize}pt;"><tbody>`
         metadataRows.forEach((row, idx) => {
           let rightCol = ''
           if (idx === 0) {
@@ -117,7 +117,7 @@ const compiledHTML = computed(() => {
 
       if (formData.metadata.tujuan) {
         contentHtml += `
-          <div style="text-align:left; margin-bottom: 20px; margin-left: 103px; line-height: 1.5; font-family: ${globalFontFamily}; font-size: ${globalFontSize}pt; color: black;">
+          <div style="text-align:left; margin-top: 0; margin-bottom: 10px; margin-left: 103px; line-height: 1.5; font-family: ${globalFontFamily}; font-size: ${globalFontSize}pt; color: black;">
             Kepada Yth.<br>${formData.metadata.tujuan.replace(/\n/g, '<br>')}
           </div>
         `
@@ -280,6 +280,9 @@ const compiledHTML = computed(() => {
       const signatureLocation = templateObj.signatureLocation || ''
 
       let signatureImageHtml = ''
+      const ticketNum = requestData.value?.ticketNumber || ''
+      const watermarkText = ticketNum ? `${ticketNum} • ${ticketNum} • ${ticketNum}` : ''
+
       if (templateObj.signatureType === 'barcode' && requestData.value.ticketNumber) {
         const verifyUrl = `${window.location.origin}/layanan-surat/track/${requestData.value.ticketNumber}`
         const barcodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(verifyUrl)}&margin=0`
@@ -290,17 +293,29 @@ const compiledHTML = computed(() => {
       } else if (templateObj.signatureType === 'both') {
         const verifyUrl = requestData.value.ticketNumber ? `${window.location.origin}/layanan-surat/track/${requestData.value.ticketNumber}` : ''
         const barcodeUrl = verifyUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(verifyUrl)}&margin=0` : ''
-        const ttdHtml = templateObj.signatureImageUrl ? `<img src="${templateObj.signatureImageUrl}" alt="TTD" style="display: block; max-height: 80px; width: auto; mix-blend-mode: multiply;" />` : '<div style="height: 60px; width: 80px;"></div>'
+        const ttdImgTag = templateObj.signatureImageUrl ? `<img src="${templateObj.signatureImageUrl}" alt="TTD" style="display: block; max-height: 80px; width: auto; mix-blend-mode: multiply;" />` : '<div style="height: 60px; width: 80px;"></div>'
         
         signatureImageHtml = `
-          <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin: 8px 0;">
+          <div style="position: relative; display: flex; align-items: center; justify-content: center; gap: 10px; margin: 8px 0;">
             ${barcodeUrl ? `<img src="${barcodeUrl}" alt="QR Code" style="display: block; height: 60px; width: 60px;" />` : ''}
-            ${ttdHtml}
+            <div style="position: relative; display: inline-block;">
+              ${ttdImgTag}
+              ${watermarkText ? `<div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; pointer-events: none; overflow: hidden;">
+                <span style="font-size: 7px; color: rgba(0,0,0,0.08); transform: rotate(-30deg); white-space: nowrap; letter-spacing: 1px; user-select: none;">${watermarkText}</span>
+              </div>` : ''}
+            </div>
           </div>
           <p style="margin: 0 0 8px 0; font-size: 9px; color: #333; font-style: italic;">Dokumen ini sah secara elektronik</p>
         `
       } else if (templateObj.signatureImageUrl) {
-        signatureImageHtml = `<img src="${templateObj.signatureImageUrl}" alt="TTD" style="display: block; max-height: 100px; width: auto; mix-blend-mode: multiply; margin: 8px auto;" />`
+        signatureImageHtml = `
+          <div style="position: relative; display: inline-block; margin: 8px auto;">
+            <img src="${templateObj.signatureImageUrl}" alt="TTD" style="display: block; max-height: 100px; width: auto; mix-blend-mode: multiply;" />
+            ${watermarkText ? `<div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; pointer-events: none; overflow: hidden;">
+              <span style="font-size: 7px; color: rgba(0,0,0,0.08); transform: rotate(-30deg); white-space: nowrap; letter-spacing: 1px; user-select: none;">${watermarkText}</span>
+            </div>` : ''}
+          </div>
+        `
       } else {
         signatureImageHtml = '<div style="height: 80px;"></div>'
       }
@@ -311,6 +326,7 @@ const compiledHTML = computed(() => {
           <p style="margin: 0; font-size: ${globalFontSize}pt; color: black;">${signatureTitle}</p>
           ${signatureImageHtml}
           <p style="margin: 0; font-weight: bold; font-size: ${globalFontSize}pt; text-decoration: underline; color: black;">${signatureName}</p>
+          ${templateObj.signatureNik ? `<p style="margin: 0; font-size: ${globalFontSize}pt; color: black;">NIK: ${templateObj.signatureNik}</p>` : ''}
         </div>`
     }
 

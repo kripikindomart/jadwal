@@ -104,6 +104,7 @@ export class LecturersService {
     password?: string;
     nidn?: string;
     nip?: string;
+    nik?: string;
     frontTitle?: string;
     backTitle?: string;
     homeProdiId?: number;
@@ -132,6 +133,7 @@ export class LecturersService {
       userId: savedUser.id,
       nidn: dto.nidn,
       nip: dto.nip,
+      nik: dto.nik,
       frontTitle: dto.frontTitle,
       backTitle: dto.backTitle,
       homeProdiId: dto.homeProdiId,
@@ -149,6 +151,7 @@ export class LecturersService {
       phone?: string;
       nidn?: string;
       nip?: string;
+      nik?: string;
       frontTitle?: string;
       backTitle?: string;
       homeProdiId?: number;
@@ -175,6 +178,7 @@ export class LecturersService {
     if (dto.nip !== undefined) profile.nip = dto.nip;
     if (dto.frontTitle !== undefined) profile.frontTitle = dto.frontTitle;
     if (dto.backTitle !== undefined) profile.backTitle = dto.backTitle;
+    if (dto.nik !== undefined) profile.nik = dto.nik;
     if (dto.homeProdiId !== undefined) profile.homeProdiId = dto.homeProdiId;
     await this.profileRepo.save(profile);
 
@@ -337,6 +341,7 @@ export class LecturersService {
       phone: user.phone || null,
       nidn: profile?.nidn || null,
       nip: profile?.nip || null,
+      nik: profile?.nik || null,
       frontTitle: profile?.frontTitle || null,
       backTitle: profile?.backTitle || null,
       fullName:

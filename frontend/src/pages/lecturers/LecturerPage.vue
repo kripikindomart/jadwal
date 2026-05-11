@@ -58,13 +58,14 @@ const form = ref({
   phone: '',
   nidn: '',
   nip: '',
+  nik: '',
   frontTitle: '',
   backTitle: '',
   homeProdiId: '' as string | number,
 })
 
 function resetForm() {
-  form.value = { name: '', email: '', phone: '', nidn: '', nip: '', frontTitle: '', backTitle: '', homeProdiId: '' }
+  form.value = { name: '', email: '', phone: '', nidn: '', nip: '', nik: '', frontTitle: '', backTitle: '', homeProdiId: '' }
   editingId.value = null
 }
 
@@ -147,6 +148,7 @@ async function openEdit(item: any) {
     phone: item.phone || '',
     nidn: item.nidn || '',
     nip: item.nip || '',
+    nik: item.nik || '',
     frontTitle: item.frontTitle || '',
     backTitle: item.backTitle || '',
     homeProdiId: item.homeProdiId || '',
@@ -355,6 +357,7 @@ function handleImportSuccess() {
           <span class="font-semibold text-slate-800">{{ item.fullName }}</span>
           <span class="text-xs text-slate-500">NIDN: <span class="font-mono text-slate-700">{{ item.nidn || '—' }}</span></span>
           <span class="text-xs text-slate-500">NIP: <span class="font-mono text-slate-700">{{ item.nip || '—' }}</span></span>
+          <span class="text-xs text-slate-500">NIK: <span class="font-mono text-slate-700">{{ item.nik || '—' }}</span></span>
         </div>
       </template>
       <template #cell(contact)="{ item }">
@@ -453,6 +456,11 @@ function handleImportSuccess() {
           <input v-model="form.nip" type="text" placeholder="Nomor Induk Pegawai"
             class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
         </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">NIK</label>
+        <input v-model="form.nik" type="text" placeholder="Nomor Induk Kepegawaian"
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
       </div>
       <div>
         <label class="block text-sm font-medium text-slate-700 mb-1">Homebase Prodi</label>

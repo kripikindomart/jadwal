@@ -59,6 +59,16 @@ export class CreateProdiDto {
   @IsString()
   @IsNotEmpty()
   degree: string;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsNumber()
+  @IsOptional()
+  ketuaProdiId?: number;
+
+  @ApiPropertyOptional({ example: '/uploads/letters/ttd.png' })
+  @IsString()
+  @IsOptional()
+  signatureUrl?: string;
 }
 
 export class UpdateProdiDto extends CreateProdiDto {}

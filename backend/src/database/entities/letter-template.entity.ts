@@ -31,6 +31,9 @@ export class LetterTemplate {
   @Column({ type: 'varchar', nullable: true })
   signatureName: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  signatureNik: string;
+
   @Column({ type: 'varchar', nullable: true, default: 'Mengetahui,' })
   signatureTitle: string;
 

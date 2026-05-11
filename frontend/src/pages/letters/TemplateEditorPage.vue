@@ -53,6 +53,7 @@ const templateData = ref<any>({
   headerHtmlContent: '',
   signatureImageUrl: '',
   signatureName: '',
+  signatureNik: '',
   signatureType: 'manual',
   signatureTitle: 'Mengetahui,',
   signatureLocation: '',
@@ -330,6 +331,7 @@ const saveContent = async () => {
       headerHtmlContent: headerContentToSave || '',
       signatureImageUrl: templateData.value.signatureImageUrl,
       signatureName: templateData.value.signatureName,
+      signatureNik: templateData.value.signatureNik,
       signatureType: templateData.value.signatureType,
       signatureTitle: templateData.value.signatureTitle,
       signatureLocation: templateData.value.signatureLocation,
@@ -537,6 +539,7 @@ const openPreview = () => {
         ${templateData.value.signatureTitle ? `<div style="margin-bottom: 1rem;">${templateData.value.signatureTitle}</div>` : ''}
         ${templateData.value.signatureImageUrl ? `<img src="${templateData.value.signatureImageUrl}" alt="Tanda Tangan" style="max-height: 100px; max-width: 200px; margin: 0 auto; display: block;" />` : `<div style="height: 80px;"></div>`}
         ${templateData.value.signatureName ? `<div style="margin-top: 1rem; font-weight: bold; text-decoration: underline;">${templateData.value.signatureName}</div>` : ''}
+        ${templateData.value.signatureNik ? `<div style="margin-top: 0.25rem;">NIK: ${templateData.value.signatureNik}</div>` : ''}
       </div>
     `
   }
@@ -971,6 +974,12 @@ const insertVariable = (tag: string) => {
              <div class="w-full mb-3 text-left">
                <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Pejabat</label>
                <input v-model="templateData.signatureName" type="text" placeholder="Dr. H. Fulan, M.Pd." class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-600 outline-none" />
+             </div>
+
+             <!-- NIK input -->
+             <div class="w-full mb-3 text-left">
+               <label class="block text-xs font-semibold text-gray-600 mb-1">NIK Pejabat</label>
+               <input v-model="templateData.signatureNik" type="text" placeholder="Nomor Induk Kepegawaian (Opsional)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-600 outline-none" />
              </div>
 
              <!-- Form for manual signature image -->
