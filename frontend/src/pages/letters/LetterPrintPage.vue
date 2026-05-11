@@ -56,8 +56,140 @@ const compiledHTML = computed(() => {
 
   let templateText = templateObj.htmlContent
 
+  if (templateObj.editorType === 'form') {
+    try {
+      const formData = JSON.parse(templateText)
+      let generatedHtml = ''
+      
+      // 1. Metadata Table
+      let metadataRows = []
+      if (formData.metadata.showNomor) metadataRows.push({ label: 'Nomor', tag: '[nomor_surat]' })
+      if (formData.metadata.showLampiran) metadataRows.push({ label: 'Lampiran', tag: '[lampiran]' })
+      if (formData.metadata.showPerihal) metadataRows.push({ label: 'Perihal', tag: '[perihal]' })
+
+      if (metadataRows.length > 0) {
+        let metaHtml = `<table style="width:100%; border-collapse:collapse; margin-bottom:20px; border: none;"><tbody>`
+        metadataRows.forEach((row, idx) => {
+          let rightCol = ''
+          if (idx === 0) {
+            rightCol = `<td style="padding:4px 0; width:40%; border:none; vertical-align: top; text-align: right;" rowspan="${metadataRows.length}">Bogor, [tanggal_surat]</td>`
+          }
+          metaHtml += `<tr><td style="padding:4px 0; width:80px; border:none; vertical-align: top;">${row.label}</td><td style="padding:4px 8px 4px 0; width:15px; border:none; vertical-align: top; text-align: center;">:</td><td style="padding:4px 0; border:none; vertical-align: top;">${row.tag}</td>${rightCol}</tr>`
+        })
+        metaHtml += `</tbody></table>`
+        generatedHtml += metaHtml
+      } else {
+        generatedHtml += `<div style="text-align:right; margin-bottom: 20px;">Bogor, [tanggal_surat]</div>`
+      }
+
+      let contentHtml = ''
+
+      // Helper: process paragraphs
+      const fixParagraphs = (html: string, indent: string = '103px') => {
+        // Fix empty paragraphs so Enter shows as gap
+        let processedHtml = html.replace(/<p><\/p>/gi, '<p><br></p>')
+        processedHtml = processedHtml.replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, '<p style="min-height: 1.5em;"><br></p>')
+        
+        // Match ALL <p> tags (with or without attributes) and inject styles
+        processedHtml = processedHtml.replace(/<p(\s[^>]*)?>|<p>/gi, (match, attrs) => {
+          const baseStyle = `text-align: justify; margin: 0 0 0.5em 0; margin-left: ${indent}; line-height: 1.5;`
+          if (!attrs || attrs.trim() === '') {
+            return `<p style="${baseStyle}">`
+          }
+          if (/style\s*=/i.test(attrs)) {
+            return match.replace(/style\s*=\s*"([^"]*)"/i, (_m: string, existing: string) => `style="${existing}; ${baseStyle}"`)
+          }
+          return `<p${attrs} style="${baseStyle}">`
+        })
+        return processedHtml
+      }
+
+      if (formData.metadata.tujuan) {
+        contentHtml += `
+          <div style="text-align:left; margin-bottom: 20px; margin-left: 103px; line-height: 1.5;">
+            Kepada Yth.<br>${formData.metadata.tujuan.replace(/\n/g, '<br>')}
+          </div>
+        `
+      }
+
+      // 2. Opening (Flush with Nomor text)
+      if (formData.openingText) {
+        contentHtml += `
+          <div style="margin-bottom: 12px; line-height: 1.5;">
+            ${fixParagraphs(formData.openingText, '103px')}
+          </div>
+        `
+      }
+
+      // 3. Identity Table (Indented relative to Nomor text)
+      if (formData.identityTable?.show && formData.identityTable.fields?.length) {
+        let idRows = ''
+        formData.identityTable.fields.forEach((f: any) => {
+          idRows += `
+            <tr>
+              <td style="padding:4px 8px 4px 0; width:150px; border:none; vertical-align: top;">${f.key}</td>
+              <td style="padding:4px 8px 4px 0; width:15px; border:none; vertical-align: top; text-align: center;">:</td>
+              <td style="padding:4px 0; border:none; vertical-align: top;">${f.tag}</td>
+            </tr>
+          `
+        })
+        contentHtml += `
+          <table style="width:calc(100% - 103px - 1.5cm); border-collapse:collapse; margin:12px 0 12px calc(103px + 1.5cm); border: none;">
+            <tbody>${idRows}</tbody>
+          </table>
+        `
+      }
+
+      // 4. Body (Flush with Nomor text)
+      if (formData.bodyText) {
+        contentHtml += `
+          <div style="margin-bottom: 12px; line-height: 1.5;">
+            ${fixParagraphs(formData.bodyText, '103px')}
+          </div>
+        `
+      }
+
+      // 5. Closing (Flush with Nomor text)
+      if (formData.closingText) {
+        contentHtml += `
+          <div style="margin-bottom: 12px; line-height: 1.5;">
+            ${fixParagraphs(formData.closingText, '103px')}
+          </div>
+        `
+      }
+
+      generatedHtml += contentHtml
+      templateText = generatedHtml
+    } catch (e) {
+      console.error('Failed to parse form data', e)
+    }
+  }
+
   // Render Kop Surat (Header) at the very top if exists
-  if (templateObj.headerMode === 'editor' && templateObj.headerHtmlContent) {
+  if (templateObj.headerMode === 'form' && templateObj.headerHtmlContent) {
+    try {
+      const hd = JSON.parse(templateObj.headerHtmlContent)
+      let headerHtml = `
+        <table style="width: 100%; border-collapse: collapse; font-family: ${hd.fontFamily || "'Times New Roman', Times, serif"};">
+          <tr>
+            ${hd.logoUrl ? `<td style="width: 110px; vertical-align: middle; text-align: center; padding-bottom: 10px; border: none;">
+              <img src="${hd.logoUrl}" style="max-width: 100px; max-height: 100px;" />
+            </td>` : ''}
+            <td style="vertical-align: middle; text-align: center; padding-bottom: 10px; border: none;">
+              ${hd.title1 ? `<div style="font-size: ${hd.title1Size || 14}pt; font-weight: normal; margin-bottom: ${hd.spacing ?? 2}px; line-height: 1.1;">${hd.title1}</div>` : ''}
+              ${hd.title2 ? `<div style="font-size: ${hd.title2Size || 16}pt; font-weight: bold; margin-bottom: ${hd.spacing ?? 2}px; line-height: 1.1;">${hd.title2}</div>` : ''}
+              ${hd.title3 ? `<div style="font-size: ${hd.title3Size || 14}pt; font-weight: bold; margin-bottom: ${hd.spacing ?? 2}px; line-height: 1.1;">${hd.title3}</div>` : ''}
+              ${hd.address ? `<div style="font-size: ${hd.addressSize || 10}pt; font-weight: normal; line-height: 1.1;">${hd.address.replace(/\n/g, '<br>')}</div>` : ''}
+            </td>
+          </tr>
+        </table>
+        <hr style="border: none; border-top: 3px solid black; border-bottom: 1px solid black; height: 1px; margin: 0; padding: 0;">
+      `
+      templateText = headerHtml + templateText
+    } catch (e) {
+      console.error('Failed to parse header form data', e)
+    }
+  } else if (templateObj.headerMode === 'editor' && templateObj.headerHtmlContent) {
     const headerHtml = `<div style="margin-bottom: 0.5rem;">${templateObj.headerHtmlContent}</div>`
     templateText = headerHtml + templateText
   } else if (templateObj.headerImageUrl) {
@@ -79,6 +211,7 @@ const compiledHTML = computed(() => {
   templateText = templateText.replace(/\[nomor_surat\]/gi, requestData.value.nomorSurat || '')
   templateText = templateText.replace(/\[lampiran\]/gi, requestData.value.lampiran || '-')
   templateText = templateText.replace(/\[perihal\]/gi, requestData.value.perihal || '')
+  templateText = templateText.replace(/\[tujuan_surat\]/gi, requestData.value.tujuanSurat || '')
 
   // Note: Prodi name
   templateText = templateText.replace(/\[prodi\]/gi, requestData.value.prodi?.name || '')
@@ -165,7 +298,7 @@ const compiledHTML = computed(() => {
       const tembusanLines = templateObj.tembusanText.trim().split('\n').map((l: string) => `<li style="margin-bottom: 2px; color: black;">${l.replace(/^\d+\.\s*/, '')}</li>`).join('')
       bottomHtml += `
         <div style="width: 100%; text-align: left; margin-top: 20px; color: black;">
-          <p style="margin-bottom: 5px; font-weight: bold; text-decoration: underline; color: black;">Tembusan:</p>
+          <p style="margin-bottom: 5px; color: black;">Tembusan Yth:</p>
           <ol style="margin: 0; padding-left: 18px; font-size: 12px; color: black;">${tembusanLines}</ol>
         </div>`
     }
@@ -317,7 +450,6 @@ body, html {
   
   /* Scale down slightly if content is too long */
   @page {
-    size: A4 portrait;
     margin: 0;
   }
   body {

@@ -1,0 +1,8 @@
+- `[x]` Implement Form-Based Layout (`Alternatif 1`)
+    - `[x]` Update `TemplateEditorPage.vue` to support `editorType: 'form'`.
+    - `[x]` Add UI for the Form-Based editor (Metadata, Opening, Identity Table, Body, Closing).
+    - `[x]` Update `TemplateEditorPage.vue` to support `headerMode: 'form'` (Kop Surat mode blok).
+    - `[x]` Ensure data is serialized to JSON and saved in `htmlContent` and `headerHtmlContent`.
+    - `[x]` Update `LetterPrintPage.vue` to parse and render `editorType === 'form'` and `headerMode === 'form'` correctly.
+    - `[x]` Ensure dynamic variables `[nama]`, `[nim]` still work in the text blocks (via clipboard logic).
+- `[x]` Verify changes locally.

@@ -1,0 +1,8 @@
+- `[x]` Implement Raw HTML Mode
+    - `[x]` Add `html` option to `templateData.editorType` in `TemplateEditorPage.vue`.
+    - `[x]` Add HTML toggle button beside TinyMCE and TipTap buttons.
+    - `[x]` Create a `<textarea>` for raw HTML editing when `editorType === 'html'`.
+    - `[x]` Add a toggle between "Code" and "Preview" modes for the HTML editor.
+    - `[x]` Implement the "Preview" rendering inside the component.
+    - `[x]` Ensure "Insert Variable" buttons insert text into the `<textarea>` at the cursor position.
+- `[x]` Verify changes locally.
