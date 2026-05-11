@@ -212,7 +212,7 @@ const pageNumbers = computed(() => {
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm text-slate-600">
-          <thead class="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500">
+          <thead class="bg-blue-600 border-b border-blue-700 text-xs uppercase text-white shadow-sm">
             <tr>
               <th v-if="selectable" class="w-12 px-4 py-3 text-center">
                 <input
@@ -220,7 +220,7 @@ const pageNumbers = computed(() => {
                   :checked="isAllSelected"
                   :indeterminate="isIndeterminate"
                   @change="toggleSelectAll"
-                  class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                  class="h-4 w-4 rounded border-blue-400 bg-blue-700/50 text-white focus:ring-white/50"
                 />
               </th>
               <th
@@ -228,21 +228,21 @@ const pageNumbers = computed(() => {
                 :key="col.key"
                 class="px-4 py-3 font-semibold tracking-wider"
                 :class="[
-                  col.sortable ? 'cursor-pointer select-none hover:bg-slate-100 transition-colors' : '',
+                  col.sortable ? 'cursor-pointer select-none hover:bg-blue-700 transition-colors' : '',
                   col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : 'text-left'
                 ]"
                 @click="handleSort(col)"
               >
                 <div class="flex items-center gap-1" :class="{ 'justify-center': col.align === 'center', 'justify-end': col.align === 'right' }">
                   {{ col.label }}
-                  <span v-if="col.sortable" class="inline-flex flex-col opacity-50">
+                  <span v-if="col.sortable" class="inline-flex flex-col opacity-60">
                     <ChevronUp
                       class="h-2.5 w-2.5 -mb-0.5"
-                      :class="{ 'opacity-100 text-emerald-600': sortKey === col.key && sortDirection === 'asc' }"
+                      :class="{ 'opacity-100 text-white font-bold': sortKey === col.key && sortDirection === 'asc' }"
                     />
                     <ChevronDown
                       class="h-2.5 w-2.5"
-                      :class="{ 'opacity-100 text-emerald-600': sortKey === col.key && sortDirection === 'desc' }"
+                      :class="{ 'opacity-100 text-white font-bold': sortKey === col.key && sortDirection === 'desc' }"
                     />
                   </span>
                 </div>

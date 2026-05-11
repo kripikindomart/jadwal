@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { Repository, ILike, In } from 'typeorm';
 import {
   Class,
   ClassLecturer,
@@ -47,6 +47,7 @@ export class ClassesService {
     search?: string,
     courseId?: number,
     semesterId?: number,
+    prodiId?: number | number[],
   ) {
     const where: any = {};
     if (search) {
@@ -57,6 +58,13 @@ export class ClassesService {
     }
     if (semesterId) {
       where.semesterId = semesterId;
+    }
+    if (prodiId) {
+      if (Array.isArray(prodiId)) {
+        where.prodiId = In(prodiId);
+      } else {
+        where.prodiId = prodiId;
+      }
     }
 
     const [data, total] = await this.classRepository.findAndCount({
@@ -144,6 +152,8 @@ export class ClassesService {
             id: l.id,
             lecturerId: l.lecturerId,
             isPrimary: l.isPrimary,
+            meetingStart: l.meetingStart,
+            meetingEnd: l.meetingEnd,
             lecturer: {
               id: l.lecturerId,
               name: l.lecturer.name,
@@ -290,17 +300,21 @@ export class ClassesService {
     return await this.classCourseRepository.remove(classCourse);
   }
   async assignLecturers(classCourseId: number, dto: AssignLecturersDto) {
-    // Note: Parameter controller sebaiknya menggunakan ID classCourse
     // Hapus dosen lama untuk kelas matakuliah ini
     await this.classLecturerRepository.delete({ classCourseId });
 
     // Masukkan dosen baru
     if (dto.lecturerIds && dto.lecturerIds.length > 0) {
       const classLecturers = dto.lecturerIds.map((lecturerId, index) => {
+        const lecturerDetail = (dto as any).lecturerDetails?.find(
+          (d: any) => d.lecturerId === lecturerId,
+        );
         return this.classLecturerRepository.create({
           classCourseId,
           lecturerId,
-          isPrimary: index === 0, // Dosen pertama diset primary by default
+          isPrimary: index === 0,
+          meetingStart: lecturerDetail?.meetingStart || null,
+          meetingEnd: lecturerDetail?.meetingEnd || null,
         });
       });
       await this.classLecturerRepository.save(classLecturers);

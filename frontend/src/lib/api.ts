@@ -46,10 +46,18 @@ api.interceptors.response.use(
           return api(originalRequest);
         } catch {
           authStore.logout();
+          import('@/composables/useToast').then(({ useToast }) => {
+            const toast = useToast();
+            toast.warning("Sesi Berakhir", "Sesi login Anda telah habis, silakan login kembali.");
+          });
           router.push("/login");
         }
       } else {
         authStore.logout();
+        import('@/composables/useToast').then(({ useToast }) => {
+          const toast = useToast();
+          toast.warning("Sesi Berakhir", "Silakan login kembali untuk melanjutkan.");
+        });
         router.push("/login");
       }
     }

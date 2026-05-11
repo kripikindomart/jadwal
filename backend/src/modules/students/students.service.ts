@@ -34,7 +34,7 @@ export class StudentsService {
     page: number;
     perPage: number;
     search?: string;
-    prodiId?: number;
+    prodiId?: number | number[];
     angkatan?: number;
     profileStatus?: string;
     status?: 'active' | 'trash' | 'all';
@@ -73,7 +73,11 @@ export class StudentsService {
     }
 
     if (prodiId) {
-      qb.andWhere('profile.prodiId = :prodiId', { prodiId });
+      if (Array.isArray(prodiId)) {
+        qb.andWhere('profile.prodiId IN (:...prodiId)', { prodiId });
+      } else {
+        qb.andWhere('profile.prodiId = :prodiId', { prodiId });
+      }
     }
 
     if (angkatan) {

@@ -54,6 +54,10 @@ export class AssignLecturersDto {
   @IsNumber({}, { each: true })
   @IsNotEmpty()
   lecturerIds: number[];
+
+  @IsOptional()
+  @IsArray()
+  lecturerDetails?: { lecturerId: number; meetingStart: number | null; meetingEnd: number | null }[];
 }
 
 export class EnrollStudentsDto {

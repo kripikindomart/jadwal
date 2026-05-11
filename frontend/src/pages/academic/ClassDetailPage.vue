@@ -6,7 +6,7 @@ import { useConfirm } from '@/composables/useConfirm';
 import api from '@/lib/api';
 import ModalForm from '@/components/ui/ModalForm.vue';
 import SearchableSelect from '@/components/ui/SearchableSelect.vue';
-import { ArrowLeft, Plus, Trash2, Edit2, Users, CalendarDays, BookOpen } from 'lucide-vue-next';
+import { ArrowLeft, Plus, Trash2, Edit2, Users, CalendarDays, BookOpen, Eye, X } from 'lucide-vue-next';
 
 const route = useRoute();
 const router = useRouter();
@@ -93,7 +93,6 @@ const form = ref({
   roomIds: [] as number[],
   totalMeetings: 16,
   startDate: '',
-  endDate: '',
   timeslotId: '' as string | number,
   dayOfWeek: '' as string | number,
   scheduledStartTime: '',
@@ -102,7 +101,14 @@ const form = ref({
 
 const assignForm = ref({
   lecturerIds: [] as number[],
+  lecturerDetails: [] as { lecturerId: number; meetingStart: number | null; meetingEnd: number | null }[],
 });
+
+const assignStep = ref(1);
+const lecturerScheduleOpen = ref(false);
+const lecturerScheduleData = ref<any[]>([]);
+const lecturerScheduleLoading = ref(false);
+const lecturerScheduleName = ref('');
 
 const lecturerSearch = ref('');
 const filterProdiAssign = ref<number | ''>('');
@@ -172,7 +178,7 @@ const fetchMasterCourses = async () => {
 
 const fetchLecturers = async () => {
   try {
-    const res = await api.get('/lecturers?perPage=5000');
+    const res = await api.get('/lecturers?perPage=5000&ignoreProdiScope=true');
     allLecturers.value = res.data?.data?.data || res.data?.data || res.data || [];
     console.log('Loaded lecturers:', allLecturers.value.length);
   } catch (error) {
@@ -229,7 +235,6 @@ const openModal = (type: 'create' | 'edit', item?: any) => {
       roomIds: item.rooms?.map((r: any) => r.id) || [],
       totalMeetings: item.totalMeetings,
       startDate: item.startDate || '',
-      endDate: item.endDate || '',
       timeslotId: item.timeslotId || '',
       dayOfWeek: item.dayOfWeek ?? '',
       scheduledStartTime: item.scheduledStartTime || '',
@@ -237,20 +242,26 @@ const openModal = (type: 'create' | 'edit', item?: any) => {
     };
   } else {
     selectedClassCourse.value = null;
-    form.value = { courseId: '', onlinePercentage: 0, roomIds: [], totalMeetings: 16, startDate: '', endDate: '', timeslotId: '', dayOfWeek: '', scheduledStartTime: '', scheduledEndTime: '' };
+    form.value = { courseId: '', onlinePercentage: 0, roomIds: [], totalMeetings: 16, startDate: '', timeslotId: '', dayOfWeek: '', scheduledStartTime: '', scheduledEndTime: '' };
   }
   isModalOpen.value = true;
 };
 
 const handleSubmit = async () => {
+  if (form.value.scheduledStartTime && form.value.scheduledEndTime) {
+    if (form.value.scheduledStartTime >= form.value.scheduledEndTime) {
+      toast.error('Waktu Selesai harus lebih besar dari Waktu Mulai');
+      return;
+    }
+  }
+
   try {
     const payload: any = {
       courseId: parseInt(form.value.courseId),
-      onlinePercentage: form.value.onlinePercentage,
+      onlinePercentage: parseInt(form.value.onlinePercentage as string) || 0,
       roomIds: form.value.roomIds,
-      totalMeetings: form.value.totalMeetings,
+      totalMeetings: parseInt(form.value.totalMeetings as string) || 16,
       startDate: form.value.startDate || null,
-      endDate: form.value.endDate || null,
       timeslotId: form.value.timeslotId ? Number(form.value.timeslotId) : null,
       dayOfWeek: form.value.dayOfWeek !== '' ? Number(form.value.dayOfWeek) : null,
       scheduledStartTime: form.value.scheduledStartTime || null,
@@ -268,7 +279,8 @@ const handleSubmit = async () => {
     isModalOpen.value = false;
     fetchClassData();
   } catch (error: any) {
-    toast.error(error.response?.data?.message || 'Gagal menyimpan matakuliah');
+    const msg = error.response?.data?.message;
+    toast.error(Array.isArray(msg) ? msg[0] : (msg || 'Gagal menyimpan matakuliah'));
   }
 };
 
@@ -276,7 +288,13 @@ const openAssignModal = (item: any) => {
   selectedClassCourse.value = item;
   lecturerSearch.value = '';
   filterProdiAssign.value = '';
+  assignStep.value = 1;
   assignForm.value.lecturerIds = item.classLecturers?.map((l: any) => l.lecturer?.id || l.lecturerId) || [];
+  assignForm.value.lecturerDetails = item.classLecturers?.map((l: any) => ({
+    lecturerId: l.lecturer?.id || l.lecturerId,
+    meetingStart: l.meetingStart || null,
+    meetingEnd: l.meetingEnd || null,
+  })) || [];
   isAssignOpen.value = true;
 };
 
@@ -285,18 +303,113 @@ const openScheduleModal = (item: any) => {
   isScheduleOpen.value = true;
 };
 
+const goToAssignStep2 = () => {
+  if (assignForm.value.lecturerIds.length === 0) {
+    toast.error('Pilih minimal satu dosen.');
+    return;
+  }
+  // Sync lecturerDetails with selected ids
+  const newDetails = assignForm.value.lecturerIds.map(id => {
+    const existing = assignForm.value.lecturerDetails.find(d => d.lecturerId === id);
+    return existing || { lecturerId: id, meetingStart: null, meetingEnd: null };
+  });
+  assignForm.value.lecturerDetails = newDetails;
+  assignStep.value = 2;
+};
+
+const getLecturerName = (id: number) => {
+  const l = allLecturers.value.find((l: any) => l.id === id);
+  return l?.fullName || l?.name || 'Dosen';
+};
+
+const getLecturerProdi = (id: number) => {
+  const l = allLecturers.value.find((l: any) => l.id === id);
+  return l?.homeProdi?.shortName || l?.homeProdi?.name || '';
+};
+
+const viewLecturerSchedule = async (lecturerId: number) => {
+  lecturerScheduleName.value = getLecturerName(lecturerId);
+  lecturerScheduleLoading.value = true;
+  lecturerScheduleOpen.value = true;
+  lecturerScheduleData.value = [];
+  try {
+    const res = await api.get(`/schedules/lecturer/${lecturerId}`);
+    lecturerScheduleData.value = res.data || [];
+  } catch (e: any) {
+    toast.error('Gagal memuat jadwal dosen');
+  } finally {
+    lecturerScheduleLoading.value = false;
+  }
+};
+
 const handleAssignSubmit = async () => {
   try {
     await api.post(`/classes/courses/${selectedClassCourse.value.id}/lecturers`, {
-      lecturerIds: assignForm.value.lecturerIds
+      lecturerIds: assignForm.value.lecturerIds,
+      lecturerDetails: assignForm.value.lecturerDetails,
     });
     toast.success('Pengajar matakuliah berhasil diupdate');
     isAssignOpen.value = false;
     fetchClassData();
   } catch (error: any) {
-    toast.error(error.response?.data?.message || 'Gagal menugaskan dosen');
+    const msg = error.response?.data?.message;
+    toast.error(Array.isArray(msg) ? msg[0] : (msg || 'Gagal menugaskan dosen'));
   }
 };
+
+// Auto-suggest: when lecturer N sets meetingEnd, auto-fill lecturer N+1's meetingStart
+const onMeetingEndChange = (idx: number) => {
+  const details = assignForm.value.lecturerDetails;
+  const current = details[idx];
+  if (current.meetingEnd && idx + 1 < details.length) {
+    const next = details[idx + 1];
+    if (!next.meetingStart || next.meetingStart <= current.meetingEnd) {
+      next.meetingStart = current.meetingEnd + 1;
+    }
+    if (!next.meetingEnd) {
+      next.meetingEnd = selectedClassCourse.value?.totalMeetings || 16;
+    }
+  }
+};
+
+// Conflict check per lecturer
+const lecturerConflicts = ref<Record<number, string[]>>({});
+
+const checkLecturerConflict = async (lecturerId: number) => {
+  try {
+    const res = await api.get(`/schedules/lecturer/${lecturerId}`);
+    const lecturerSchedules = res.data || [];
+    const currentSchedules = selectedClassCourse.value?.classSchedules || [];
+    
+    if (lecturerSchedules.length === 0 || currentSchedules.length === 0) {
+      lecturerConflicts.value[lecturerId] = [];
+      return;
+    }
+    
+    const conflicts: string[] = [];
+    const dayNames = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+    
+    for (const cs of currentSchedules) {
+      for (const ls of lecturerSchedules) {
+        if (cs.dayOfWeek === ls.dayOfWeek && cs.startTime === ls.startTime && cs.endTime === ls.endTime) {
+          conflicts.push(`${dayNames[ls.dayOfWeek]} ${ls.startTime?.slice(0,5)}-${ls.endTime?.slice(0,5)} (${ls.courseName} - ${ls.prodiName})`);
+        }
+      }
+    }
+    lecturerConflicts.value[lecturerId] = conflicts;
+  } catch (e) {
+    lecturerConflicts.value[lecturerId] = [];
+  }
+};
+
+// Auto-check conflicts when entering step 2
+watch(assignStep, async (step) => {
+  if (step === 2) {
+    for (const detail of assignForm.value.lecturerDetails) {
+      await checkLecturerConflict(detail.lecturerId);
+    }
+  }
+});
 
 const confirmDelete = (item: any) => {
   confirm.requireConfirm({
@@ -494,6 +607,55 @@ const deleteIndividualSchedule = async (schedId: number) => {
   });
 };
 
+const isEditSchedOpen = ref(false);
+const editSchedForm = ref({
+  id: 0,
+  date: '',
+  startTime: '',
+  endTime: '',
+  roomId: null as number | null,
+  dayOfWeek: 1,
+});
+
+const openEditSchedule = (sched: any) => {
+  editSchedForm.value = {
+    id: sched.id,
+    date: sched.date || '',
+    startTime: sched.startTime?.slice(0,5) || '',
+    endTime: sched.endTime?.slice(0,5) || '',
+    roomId: sched.roomId || sched.room?.id || null,
+    dayOfWeek: sched.dayOfWeek,
+  };
+  isEditSchedOpen.value = true;
+};
+
+const submitEditSchedule = async () => {
+  if (editSchedForm.value.startTime && editSchedForm.value.endTime) {
+    if (editSchedForm.value.startTime >= editSchedForm.value.endTime) {
+      toast.error('Waktu Selesai harus lebih besar dari Waktu Mulai');
+      return;
+    }
+  }
+  try {
+    loading.value = true;
+    // Auto calculate dayOfWeek from date
+    if (editSchedForm.value.date) {
+      const d = new Date(editSchedForm.value.date);
+      editSchedForm.value.dayOfWeek = d.getDay() === 0 ? 7 : d.getDay();
+    }
+    const { id, ...payload } = editSchedForm.value;
+    await api.patch(`/schedules/${id}`, payload);
+    toast.success('Jadwal berhasil diperbarui');
+    isEditSchedOpen.value = false;
+    await fetchClassData();
+  } catch (e: any) {
+    const msg = e.response?.data?.message;
+    toast.error(Array.isArray(msg) ? msg[0] : (msg || 'Gagal memperbarui jadwal'));
+  } finally {
+    loading.value = false;
+  }
+};
+
 const toggleAllSchedules = (course: any) => {
   const allIds = (course.classSchedules || []).map((s: any) => s.id);
   const allSelected = allIds.every((id: number) => bulkSelectedIds.value.includes(id));
@@ -529,6 +691,13 @@ const bulkDeleteSchedules = () => {
 };
 
 const handleBulkReschedule = async () => {
+  if (reschedForm.value.startTime && reschedForm.value.endTime) {
+    if (reschedForm.value.startTime >= reschedForm.value.endTime) {
+      toast.error('Waktu Selesai harus lebih besar dari Waktu Mulai');
+      return;
+    }
+  }
+
   try {
     loading.value = true;
     const payload: any = { ids: bulkSelectedIds.value };
@@ -563,6 +732,13 @@ const openManualSchedModal = (course: any) => {
 };
 
 const submitManualSched = async () => {
+  if (manualSchedForm.value.startTime && manualSchedForm.value.endTime) {
+    if (manualSchedForm.value.startTime >= manualSchedForm.value.endTime) {
+      toast.error('Waktu Selesai harus lebih besar dari Waktu Mulai');
+      return;
+    }
+  }
+
   try {
     loading.value = true;
     
@@ -645,7 +821,7 @@ onMounted(() => {
             ]"
           >
             <CalendarDays class="w-4 h-4" :class="activeTab === 'jadwal' ? 'text-blue-600' : 'text-gray-400'" />
-            2. Jadwal 16 Pertemuan
+            2. Jadwal Pertemuan
           </button>
           
           <button
@@ -672,14 +848,14 @@ onMounted(() => {
     
     <div class="p-0">
       <table class="w-full text-left border-collapse">
-        <thead class="bg-gray-50 text-gray-700 text-sm">
+        <thead class="bg-blue-600 text-white text-sm">
           <tr>
-            <th class="py-3 px-4 font-semibold border-b border-gray-100">Matakuliah</th>
-            <th class="py-3 px-4 font-semibold border-b border-gray-100 text-center">SKS</th>
-            <th class="py-3 px-4 font-semibold border-b border-gray-100 text-center">Tipe Pertemuan</th>
-            <th class="py-3 px-4 font-semibold border-b border-gray-100 text-center">Jumlah Prt.</th>
-            <th class="py-3 px-4 font-semibold border-b border-gray-100">Dosen Pengampu</th>
-            <th class="py-3 px-4 font-semibold border-b border-gray-100 text-right">Aksi</th>
+            <th class="py-3 px-4 font-semibold">Matakuliah</th>
+            <th class="py-3 px-4 font-semibold text-center">SKS</th>
+            <th class="py-3 px-4 font-semibold text-center">Tipe Pertemuan</th>
+            <th class="py-3 px-4 font-semibold text-center">Jumlah Prt.</th>
+            <th class="py-3 px-4 font-semibold">Dosen Pengampu</th>
+            <th class="py-3 px-4 font-semibold text-right">Aksi</th>
           </tr>
         </thead>
         <tbody class="text-sm divide-y divide-gray-100">
@@ -735,7 +911,9 @@ onMounted(() => {
             <td class="py-3 px-4">
               <div v-if="item.classLecturers && item.classLecturers.length > 0" class="flex flex-col gap-1 items-start">
                 <span v-for="l in item.classLecturers" :key="l.id" class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded border border-gray-200">
-                  {{ l.lecturer?.fullName || l.lecturer?.name || 'Unknown' }} <span v-if="l.isPrimary" class="text-blue-600 font-bold ml-1">(PJ)</span>
+                  {{ l.lecturer?.fullName || l.lecturer?.name || 'Unknown' }}
+                  <span v-if="l.isPrimary" class="text-blue-600 font-bold ml-1">(PJ)</span>
+                  <span v-if="l.meetingStart || l.meetingEnd" class="text-gray-400 ml-1">Prt. {{ l.meetingStart || 1 }}-{{ l.meetingEnd || item.totalMeetings }}</span>
                 </span>
               </div>
               <span v-else class="text-gray-400 italic text-xs">Belum ada dosen</span>
@@ -771,11 +949,10 @@ onMounted(() => {
     </div>
   </div>
 
-  <!-- Tab 2: Jadwal -->
   <div v-if="activeTab === 'jadwal'" class="space-y-6">
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-between items-center">
       <div>
-        <h2 class="text-lg font-semibold text-gray-800">Jadwal 16 Pertemuan</h2>
+        <h2 class="text-lg font-semibold text-gray-800">Jadwal Pertemuan</h2>
         <p class="text-xs text-gray-500 mt-1">Sistem akan secara otomatis menyusun jadwal pertemuan, menyesuaikan tanggal dan slot prioritas matakuliah. Offline/online di-acak random.</p>
       </div>
       <div class="flex items-center gap-2">
@@ -897,16 +1074,26 @@ onMounted(() => {
               </td>
               <td class="px-4 py-2">
                 <div v-if="item.classLecturers && item.classLecturers.length > 0" class="flex flex-col gap-1 items-start">
-                  <span v-for="l in item.classLecturers" :key="l.id" class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded border border-gray-200 whitespace-nowrap">
-                    {{ l.lecturer?.fullName || l.lecturer?.name || 'Unknown' }} <span v-if="l.isPrimary" class="text-blue-600 font-bold ml-1">(PJ)</span>
-                  </span>
+                  <template v-for="l in item.classLecturers" :key="l.id">
+                    <span
+                      v-if="!l.meetingStart && !l.meetingEnd || (l.meetingStart <= (Number(idx) + 1) && (Number(idx) + 1) <= l.meetingEnd)"
+                      class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded border border-gray-200 whitespace-nowrap"
+                    >
+                      {{ l.lecturer?.fullName || l.lecturer?.name || 'Unknown' }} <span v-if="l.isPrimary" class="text-blue-600 font-bold ml-1">(PJ)</span>
+                    </span>
+                  </template>
                 </div>
                 <span v-else class="text-gray-400 italic text-xs">Belum ada dosen</span>
               </td>
               <td class="px-4 py-2 text-right">
-                <button @click="deleteIndividualSchedule(sched.id)" class="text-red-500 hover:bg-red-50 p-1 rounded transition-colors" title="Hapus Pertemuan">
-                  <Trash2 class="w-4 h-4" />
-                </button>
+                <div class="flex justify-end gap-1">
+                  <button @click="openEditSchedule(sched)" class="text-blue-500 hover:bg-blue-50 p-1 rounded transition-colors" title="Edit Jadwal">
+                    <Edit2 class="w-4 h-4" />
+                  </button>
+                  <button @click="deleteIndividualSchedule(sched.id)" class="text-red-500 hover:bg-red-50 p-1 rounded transition-colors" title="Hapus Pertemuan">
+                    <Trash2 class="w-4 h-4" />
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -990,6 +1177,8 @@ onMounted(() => {
     @update:modelValue="isModalOpen = $event"
     :title="actionType === 'create' ? 'Tambah Matakuliah ke Rombel' : 'Edit Matakuliah'"
     @submit="handleSubmit"
+    maxWidth="max-w-3xl"
+    headerClass="bg-blue-600 text-white"
   >
     <div class="space-y-4">
       <div v-if="actionType === 'create'">
@@ -1007,16 +1196,21 @@ onMounted(() => {
 
       <div class="grid grid-cols-2 gap-4 mt-2">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Persentase Daring (%) *</label>
-          <input
-             type="number"
-             v-model="form.onlinePercentage"
-             min="0"
-             max="100"
-             required
-             class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-          <p class="text-xs text-gray-500 mt-1">Isi 0 untuk 100% Tatap Muka</p>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Persentase Daring: <span class="font-bold text-blue-600">{{ form.onlinePercentage }}%</span>
+          </label>
+          <div class="flex items-center gap-4 mt-2">
+            <span class="text-xs text-gray-500 font-medium">Tatap Muka</span>
+            <input
+               type="range"
+               v-model.number="form.onlinePercentage"
+               min="0"
+               max="100"
+               step="5"
+               class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            />
+            <span class="text-xs text-purple-600 font-medium">Online</span>
+          </div>
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Total Pertemuan *</label>
@@ -1031,23 +1225,18 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Tanggal Mulai / Selesai -->
+      <!-- Tanggal Mulai -->
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai Perkuliahan</label>
           <input
             v-model="form.startDate"
             type="date"
             class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Selesai</label>
-          <input
-            v-model="form.endDate"
-            type="date"
-            class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
+        <div class="flex items-center text-sm text-gray-500 italic mt-6">
+          * Jadwal {{ form.totalMeetings || 16 }} pertemuan akan di-generate otomatis mengikuti kalender berdasarkan tanggal mulai ini.
         </div>
       </div>
 
@@ -1131,67 +1320,224 @@ onMounted(() => {
     </div>
   </ModalForm>
 
-  <!-- Form Assign Dosen -->
+  <!-- Form Assign Dosen (Multi-Step) -->
   <ModalForm
     :modelValue="isAssignOpen"
     @update:modelValue="isAssignOpen = $event"
-    title="Atur Dosen Pengampu"
-    @submit="handleAssignSubmit"
+    :title="assignStep === 1 ? 'Step 1: Pilih Dosen Pengampu' : 'Step 2: Atur Pembagian Pertemuan'"
+    @submit="assignStep === 1 ? goToAssignStep2() : handleAssignSubmit()"
+    :submitText="assignStep === 1 ? 'Lanjut ke Pembagian →' : 'Simpan Penugasan'"
+    maxWidth="max-w-2xl"
+    headerClass="bg-blue-600 text-white"
   >
     <div class="space-y-4">
-      <p class="text-sm text-gray-600 mb-4">
-        Pilih dosen untuk matakuliah <strong class="text-gray-900">{{ selectedClassCourse?.course?.name }}</strong>. Dosen pertama yang dipilih otomatis menjadi Penanggung Jawab (PJMK).
-      </p>
-      <div>
-         <label class="block text-sm font-medium text-gray-700 mb-1">Pilih Dosen</label>
-         <!-- Filters Row -->
-         <div class="flex gap-2 mb-2">
-           <div class="relative flex-1">
-             <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-             <input
-               v-model="lecturerSearch"
-               type="text"
-               placeholder="Cari nama / NIDN..."
-               class="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-             />
-           </div>
-           <select
-             v-model="filterProdiAssign"
-             class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[140px]"
-           >
-             <option value="">Semua Prodi</option>
-             <option v-for="p in allProdis" :key="p.id" :value="p.id">{{ p.shortName || p.name }}</option>
-           </select>
-         </div>
-         <!-- Lecturer List -->
-         <div class="border border-gray-200 rounded-lg max-h-[220px] overflow-y-auto divide-y divide-gray-50">
-           <template v-for="l in filteredLecturers" :key="l.id">
-             <label
-               class="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-blue-50/50 transition-colors"
-               :class="{ 'bg-blue-50': assignForm.lecturerIds.includes(l.id) }"
-             >
+      <!-- Step Indicator -->
+      <div class="flex items-center gap-2 mb-2">
+        <div :class="['flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold', assignStep >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500']">
+          1
+        </div>
+        <div class="flex-1 h-0.5" :class="assignStep >= 2 ? 'bg-blue-600' : 'bg-gray-200'"></div>
+        <div :class="['flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold', assignStep >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500']">
+          2
+        </div>
+      </div>
+
+      <!-- STEP 1: Pilih Dosen -->
+      <div v-if="assignStep === 1">
+        <p class="text-sm text-gray-600 mb-4">
+          Pilih dosen untuk matakuliah <strong class="text-gray-900">{{ selectedClassCourse?.course?.name }}</strong>. Dosen pertama yang dipilih otomatis menjadi Penanggung Jawab (PJMK).
+        </p>
+        <div>
+           <label class="block text-sm font-medium text-gray-700 mb-1">Pilih Dosen</label>
+           <!-- Filters Row -->
+           <div class="flex gap-2 mb-2">
+             <div class="relative flex-1">
+               <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
                <input
-                 type="checkbox"
-                 :value="l.id"
-                 v-model="assignForm.lecturerIds"
-                 class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                 v-model="lecturerSearch"
+                 type="text"
+                 placeholder="Cari nama / NIDN..."
+                 class="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                />
-               <div class="flex flex-col min-w-0">
-                 <span class="text-sm font-medium text-gray-800 truncate">{{ l.fullName || l.name }}</span>
-                 <span class="text-xs text-gray-400">{{ l.nidn ? `NIDN: ${l.nidn}` : l.email }} {{ l.homeProdi ? `· ${l.homeProdi.shortName || l.homeProdi.name}` : '' }}</span>
-               </div>
-             </label>
-           </template>
-           <div v-if="filteredLecturers.length === 0" class="px-3 py-6 text-center text-sm text-gray-400">
-             Tidak ada dosen yang cocok.
+             </div>
+             <select
+               v-model="filterProdiAssign"
+               class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[140px]"
+             >
+               <option value="">Semua Prodi</option>
+               <option v-for="p in allProdis" :key="p.id" :value="p.id">{{ p.shortName || p.name }}</option>
+             </select>
            </div>
-         </div>
-         <p v-if="assignForm.lecturerIds.length" class="text-xs text-blue-600 mt-1.5 font-medium">
-           {{ assignForm.lecturerIds.length }} dosen dipilih
-         </p>
+           <!-- Lecturer List -->
+           <div class="border border-gray-200 rounded-lg max-h-[260px] overflow-y-auto divide-y divide-gray-50">
+             <template v-for="l in filteredLecturers" :key="l.id">
+               <label
+                 class="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-blue-50/50 transition-colors"
+                 :class="{ 'bg-blue-50': assignForm.lecturerIds.includes(l.id) }"
+               >
+                 <input
+                   type="checkbox"
+                   :value="l.id"
+                   v-model="assignForm.lecturerIds"
+                   class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                 />
+                 <div class="flex flex-col min-w-0 flex-1">
+                   <span class="text-sm font-medium text-gray-800 truncate">{{ l.fullName || l.name }}</span>
+                   <span class="text-xs text-gray-400">{{ l.nidn ? `NIDN: ${l.nidn}` : l.email }} {{ l.homeProdi ? `· ${l.homeProdi.shortName || l.homeProdi.name}` : '' }}</span>
+                 </div>
+                 <button
+                   type="button"
+                   @click.prevent.stop="viewLecturerSchedule(l.id)"
+                   class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                   title="Lihat Jadwal Mengajar"
+                 >
+                   <Eye class="w-4 h-4" />
+                 </button>
+               </label>
+             </template>
+             <div v-if="filteredLecturers.length === 0" class="px-3 py-6 text-center text-sm text-gray-400">
+               Tidak ada dosen yang cocok.
+             </div>
+           </div>
+           <p v-if="assignForm.lecturerIds.length" class="text-xs text-blue-600 mt-1.5 font-medium">
+             {{ assignForm.lecturerIds.length }} dosen dipilih
+           </p>
+        </div>
+      </div>
+
+      <!-- STEP 2: Pembagian Pertemuan -->
+      <div v-if="assignStep === 2">
+        <button type="button" @click="assignStep = 1" class="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 mb-4 font-medium">
+          ← Kembali ke Pilih Dosen
+        </button>
+        <p class="text-sm text-gray-600 mb-4">
+          Atur pembagian pertemuan untuk matakuliah <strong class="text-gray-900">{{ selectedClassCourse?.course?.name }}</strong> (Total: <strong>{{ selectedClassCourse?.totalMeetings || 16 }}</strong> pertemuan).
+          <br/><span class="text-xs text-gray-400">Kosongkan jika dosen mengajar di semua pertemuan.</span>
+        </p>
+
+        <div class="space-y-3">
+          <div
+            v-for="(detail, idx) in assignForm.lecturerDetails"
+            :key="detail.lecturerId"
+            class="border border-gray-200 rounded-xl p-4 bg-white hover:shadow-sm transition-shadow"
+          >
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <span :class="['inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold', idx === 0 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600']">
+                  {{ idx + 1 }}
+                </span>
+                <div>
+                  <span class="text-sm font-semibold text-gray-800">{{ getLecturerName(detail.lecturerId) }}</span>
+                  <span v-if="idx === 0" class="ml-2 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">PJMK</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-1">
+                <span class="text-xs text-gray-400">{{ getLecturerProdi(detail.lecturerId) }}</span>
+                <button
+                  type="button"
+                  @click="viewLecturerSchedule(detail.lecturerId)"
+                  class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                  title="Lihat Jadwal Mengajar"
+                >
+                  <Eye class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Pertemuan Mulai</label>
+                <select
+                  v-model="detail.meetingStart"
+                  class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                >
+                  <option :value="null">Semua</option>
+                  <option v-for="n in (selectedClassCourse?.totalMeetings || 16)" :key="n" :value="n">Pertemuan {{ n }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Pertemuan Selesai</label>
+                <select
+                  v-model="detail.meetingEnd"
+                  @change="onMeetingEndChange(idx)"
+                  class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                >
+                  <option :value="null">Semua</option>
+                  <option v-for="n in (selectedClassCourse?.totalMeetings || 16)" :key="n" :value="n">Pertemuan {{ n }}</option>
+                </select>
+              </div>
+            </div>
+            <!-- Conflict Warning -->
+            <div v-if="lecturerConflicts[detail.lecturerId]?.length" class="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p class="text-xs font-semibold text-amber-800 mb-1">⚠ Potensi Bentrok Jadwal:</p>
+              <ul class="text-xs text-amber-700 space-y-0.5">
+                <li v-for="(c, ci) in lecturerConflicts[detail.lecturerId]" :key="ci">• {{ c }}</li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </ModalForm>
+
+  <!-- Popup Jadwal Mengajar Dosen -->
+  <Transition
+    enter-active-class="transition duration-200 ease-out"
+    enter-from-class="opacity-0"
+    enter-to-class="opacity-100"
+    leave-active-class="transition duration-150 ease-in"
+    leave-from-class="opacity-100"
+    leave-to-class="opacity-0"
+  >
+    <div v-if="lecturerScheduleOpen" class="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="lecturerScheduleOpen = false"></div>
+      <div class="relative w-full max-w-3xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[85vh]">
+        <div class="flex items-center justify-between bg-blue-600 text-white px-6 py-4 rounded-t-2xl">
+          <h3 class="text-lg font-semibold">Jadwal Mengajar: {{ lecturerScheduleName }}</h3>
+          <button @click="lecturerScheduleOpen = false" class="p-1.5 text-white/80 hover:bg-white/20 hover:text-white rounded-lg transition-colors">
+            <X class="h-5 w-5" />
+          </button>
+        </div>
+        <div class="overflow-y-auto px-6 py-4">
+          <div v-if="lecturerScheduleLoading" class="flex justify-center py-8">
+            <svg class="h-6 w-6 animate-spin text-blue-500" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+          <div v-else-if="lecturerScheduleData.length === 0" class="text-center py-8 text-gray-400">
+            Dosen ini belum memiliki jadwal mengajar.
+          </div>
+          <table v-else class="w-full text-left text-sm">
+            <thead class="bg-blue-600 text-white text-xs uppercase">
+              <tr>
+                <th class="px-4 py-3 font-semibold rounded-tl-lg">Hari</th>
+                <th class="px-4 py-3 font-semibold">Waktu</th>
+                <th class="px-4 py-3 font-semibold">Matakuliah</th>
+                <th class="px-4 py-3 font-semibold">Kelas</th>
+                <th class="px-4 py-3 font-semibold">Prodi</th>
+                <th class="px-4 py-3 font-semibold rounded-tr-lg">Ruang</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr v-for="s in lecturerScheduleData" :key="s.id" class="hover:bg-gray-50/50">
+                <td class="px-4 py-2.5 font-medium text-gray-800">{{ ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][s.dayOfWeek] }}</td>
+                <td class="px-4 py-2.5 text-blue-700 font-medium whitespace-nowrap">{{ s.startTime?.slice(0,5) }} - {{ s.endTime?.slice(0,5) }}</td>
+                <td class="px-4 py-2.5">
+                  <span v-if="s.courseCode" class="text-xs font-mono text-gray-500 mr-1">{{ s.courseCode }}</span>
+                  {{ s.courseName }}
+                </td>
+                <td class="px-4 py-2.5 text-gray-600">{{ s.className }}</td>
+                <td class="px-4 py-2.5">
+                  <span class="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded font-medium">{{ s.prodiName }}</span>
+                </td>
+                <td class="px-4 py-2.5 text-gray-600">{{ s.room }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </Transition>
 
   <!-- Form Enroll Mahasiswa -->
   <ModalForm

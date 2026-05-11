@@ -34,7 +34,7 @@ export class LecturersService {
     page: number;
     perPage: number;
     search?: string;
-    prodiId?: number;
+    prodiId?: number | number[];
     status?: 'active' | 'trash' | 'all';
   }) {
     const { page, perPage, search, prodiId, status = 'active' } = options;
@@ -62,7 +62,11 @@ export class LecturersService {
     }
 
     if (prodiId) {
-      qb.andWhere('profile.homeProdiId = :prodiId', { prodiId });
+      if (Array.isArray(prodiId)) {
+        qb.andWhere('profile.homeProdiId IN (:...prodiId)', { prodiId });
+      } else {
+        qb.andWhere('profile.homeProdiId = :prodiId', { prodiId });
+      }
     }
 
     qb.orderBy('user.name', 'ASC');

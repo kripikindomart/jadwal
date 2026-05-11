@@ -118,11 +118,11 @@ export async function seedDatabase(dataSource: DataSource) {
     { name: 'Import Mahasiswa', slug: 'students.import', group: 'Mahasiswa' },
 
     // Penjadwalan
-    { name: 'Lihat Jadwal', slug: 'schedule.view', group: 'Penjadwalan' },
+    { name: 'Lihat Penjadwalan', slug: 'schedule.view', group: 'Penjadwalan' },
     { name: 'Kelola Jadwal', slug: 'schedule.manage', group: 'Penjadwalan' },
 
     // Kelas
-    { name: 'Lihat Kelas', slug: 'class.view', group: 'Kelas' },
+    { name: 'Lihat Detail Kelas', slug: 'class.view', group: 'Kelas' },
     { name: 'Kelola Kelas', slug: 'class.manage', group: 'Kelas' },
     { name: 'Isi Jurnal', slug: 'journal.fill', group: 'Kelas' },
     { name: 'Input Nilai', slug: 'grade.input', group: 'Kelas' },

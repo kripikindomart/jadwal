@@ -37,14 +37,29 @@ export class SchedulesController {
   @Get()
   @RequirePermissions('schedules.view')
   @ApiOperation({ summary: 'Mendapatkan daftar jadwal berdasarkan semester' })
-  async findAll(@Query('semesterId') semesterId: string) {
+  async findAll(@Req() req: any, @Query('semesterId') semesterId: string) {
     if (!semesterId) {
       return [];
     }
+
+    const whereCondition: any = {
+      classCourse: { class: { semesterId: parseInt(semesterId, 10) } },
+    };
+
+    const user = req.user;
+    const isSuperAdminOrAdmin = user.roles?.some((r: any) => r.slug === 'superadmin' || r.slug === 'admin');
+    
+    if (!isSuperAdminOrAdmin) {
+      const allowedProdiIds = user.staffProdiAccess?.map((a: any) => a.prodiId) || [];
+      if (allowedProdiIds.length > 0) {
+        whereCondition.classCourse.class.prodiId = In(allowedProdiIds);
+      } else if (user.roles?.some((r: any) => r.slug === 'staff')) {
+        whereCondition.classCourse.class.prodiId = -1; // Force empty if no prodis assigned
+      }
+    }
+
     const schedules = await this.classScheduleRepository.find({
-      where: {
-        classCourse: { class: { semesterId: parseInt(semesterId, 10) } },
-      },
+      where: whereCondition,
       relations: [
         'classCourse',
         'classCourse.class',
@@ -292,5 +307,44 @@ export class SchedulesController {
       message: `${dto.ids.length} jadwal berhasil dihapus`,
       success: true,
     };
+  }
+
+  @Get('lecturer/:lecturerId')
+  @RequirePermissions('schedules.view')
+  @ApiOperation({ summary: 'Mendapatkan jadwal mengajar dosen tertentu (lintas prodi)' })
+  async getLecturerSchedule(
+    @Param('lecturerId') lecturerId: string,
+  ) {
+    const schedules = await this.classScheduleRepository.find({
+      where: {
+        classCourse: {
+          classLecturers: { lecturerId: parseInt(lecturerId, 10) },
+        },
+      },
+      relations: [
+        'classCourse',
+        'classCourse.class',
+        'classCourse.class.prodi',
+        'classCourse.course',
+        'room',
+      ],
+      order: {
+        dayOfWeek: 'ASC',
+        startTime: 'ASC',
+      },
+    });
+
+    return schedules.map((s) => ({
+      id: s.id,
+      dayOfWeek: s.dayOfWeek,
+      date: s.date,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      room: s.room?.name || 'Online',
+      className: s.classCourse?.class?.name || '-',
+      courseName: s.classCourse?.course?.name || '-',
+      courseCode: s.classCourse?.course?.code || '',
+      prodiName: (s.classCourse?.class?.prodi as any)?.shortName || s.classCourse?.class?.prodi?.name || '-',
+    }));
   }
 }

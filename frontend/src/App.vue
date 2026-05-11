@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useIdle } from '@vueuse/core'
+import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 import AdminLayout from '@/layouts/AdminLayout.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import BlankLayout from '@/layouts/BlankLayout.vue'
@@ -8,6 +11,20 @@ import ToastContainer from '@/components/ui/ToastContainer.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 
 const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
+const toast = useToast()
+
+// 60 minutes inactivity timeout
+const { idle } = useIdle(60 * 60 * 1000)
+
+watch(idle, (isIdle) => {
+  if (isIdle && authStore.isAuthenticated) {
+    authStore.logout()
+    toast.warning("Sesi Habis", "Anda telah otomatis logout karena tidak ada aktivitas selama 60 menit.")
+    router.push('/login')
+  }
+})
 
 const layout = computed(() => {
   if (route.matched.length === 0) return 'div' // Prevents FOUC on initial loading

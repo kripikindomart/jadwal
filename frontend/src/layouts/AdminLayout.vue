@@ -131,8 +131,27 @@ const menuItems = computed(() => {
 })
 
 function isActive(path: string) {
-  if (path === '/') return route.path === '/'
-  return route.path.startsWith(path)
+  if (path === '/') return route.path === '/';
+  if (route.path === path) return true;
+  
+  if (route.path.startsWith(path + '/')) {
+    // Find all menu paths to check for overlaps
+    const allPaths: string[] = [];
+    for (const item of menuItems.value) {
+      if (item.to) allPaths.push(item.to);
+      if (item.children) {
+        for (const child of item.children) {
+          if (child.to) allPaths.push(child.to);
+        }
+      }
+    }
+    // If there is a longer menu path that matches the current route, this path should not be active
+    const hasLongerMatch = allPaths.some(p => p.length > path.length && (route.path === p || route.path.startsWith(p + '/')));
+    if (hasLongerMatch) return false;
+    
+    return true;
+  }
+  return false;
 }
 
 function isSubmenuActive(item: MenuItem) {
@@ -156,24 +175,24 @@ async function handleLogout() {
 </script>
 
 <template>
-  <div class="flex h-screen overflow-hidden bg-[var(--color-background)]">
+  <div class="flex h-screen overflow-hidden bg-slate-50">
     <!-- Sidebar -->
     <aside
       :class="[
         'fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 ease-in-out',
-        'bg-[var(--color-sidebar-bg)] text-[var(--color-sidebar-text)]',
+        'bg-white border-r border-slate-200 text-slate-700 shadow-sm',
         sidebarOpen ? 'w-64' : 'w-20',
         'lg:relative',
       ]"
     >
       <!-- Logo -->
-      <div class="flex h-16 items-center gap-3 px-4 border-b border-white/10">
-        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-primary-600)] text-white font-bold text-lg shrink-0">
+      <div class="flex h-16 items-center gap-3 px-4 border-b border-slate-100">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white font-bold text-lg shrink-0 shadow-sm">
           P
         </div>
         <div v-if="sidebarOpen" class="overflow-hidden transition-all duration-300">
-          <h1 class="text-white font-bold text-lg leading-tight truncate">Pasca CMS</h1>
-          <p class="text-xs text-slate-400 truncate">Sistem Akademik</p>
+          <h1 class="text-slate-800 font-bold text-lg leading-tight truncate">Pasca CMS</h1>
+          <p class="text-xs text-slate-500 truncate">Sistem Akademik</p>
         </div>
       </div>
 
@@ -187,11 +206,11 @@ async function handleLogout() {
             :class="[
               'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
               isActive(item.to!)
-                ? 'bg-[var(--color-sidebar-active)] text-white shadow-lg shadow-emerald-900/30'
-                : 'text-slate-300 hover:bg-[var(--color-sidebar-hover)] hover:text-white',
+                ? 'bg-emerald-50 text-emerald-700 shadow-sm shadow-emerald-100/50'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-emerald-600',
             ]"
           >
-            <component :is="item.icon" class="h-5 w-5 shrink-0" />
+            <component :is="item.icon" class="h-5 w-5 shrink-0" :class="isActive(item.to!) ? 'text-emerald-600' : 'text-slate-400'" />
             <span v-if="sidebarOpen" class="truncate">{{ item.label }}</span>
           </router-link>
 
@@ -202,16 +221,16 @@ async function handleLogout() {
               :class="[
                 'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
                 isSubmenuActive(item)
-                  ? 'bg-[var(--color-sidebar-hover)] text-white'
-                  : 'text-slate-300 hover:bg-[var(--color-sidebar-hover)] hover:text-white',
+                  ? 'bg-slate-50 text-slate-900'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-emerald-600',
               ]"
             >
-              <component :is="item.icon" class="h-5 w-5 shrink-0" />
+              <component :is="item.icon" class="h-5 w-5 shrink-0" :class="isSubmenuActive(item) ? 'text-emerald-600' : 'text-slate-400'" />
               <span v-if="sidebarOpen" class="flex-1 text-left truncate">{{ item.label }}</span>
               <ChevronRight
                 v-if="sidebarOpen"
                 :class="[
-                  'h-4 w-4 transition-transform duration-200',
+                  'h-4 w-4 transition-transform duration-200 text-slate-400',
                   openSubmenu === item.label ? 'rotate-90' : '',
                 ]"
               />
@@ -220,7 +239,7 @@ async function handleLogout() {
             <!-- Submenu children -->
             <div
               v-if="sidebarOpen && openSubmenu === item.label"
-              class="mt-1 ml-4 space-y-0.5 border-l border-white/10 pl-3"
+              class="mt-1 ml-4 space-y-0.5 border-l border-slate-200 pl-3"
             >
               <router-link
                 v-for="child in item.children"
@@ -229,11 +248,11 @@ async function handleLogout() {
                 :class="[
                   'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-all duration-200',
                   isActive(child.to)
-                    ? 'bg-[var(--color-sidebar-active)] text-white shadow-md shadow-emerald-900/20'
-                    : 'text-slate-400 hover:bg-[var(--color-sidebar-hover)] hover:text-white',
+                    ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600',
                 ]"
               >
-                <component :is="child.icon" class="h-4 w-4 shrink-0" />
+                <component :is="child.icon" class="h-4 w-4 shrink-0" :class="isActive(child.to) ? 'text-emerald-600' : 'text-slate-400'" />
                 <span class="truncate">{{ child.label }}</span>
               </router-link>
             </div>
@@ -242,19 +261,19 @@ async function handleLogout() {
       </nav>
 
       <!-- User Section -->
-      <div class="border-t border-white/10 p-3">
+      <div class="border-t border-slate-100 p-3 bg-slate-50/50">
         <div class="flex items-center gap-3 rounded-xl px-3 py-2.5">
-          <div class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-white text-sm font-bold shrink-0">
+          <div class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-white text-sm font-bold shrink-0 shadow-sm shadow-emerald-200">
             {{ authStore.user?.name?.charAt(0)?.toUpperCase() || 'A' }}
           </div>
           <div v-if="sidebarOpen" class="flex-1 overflow-hidden">
-            <p class="text-sm font-medium text-white truncate">{{ authStore.user?.name || 'User' }}</p>
-            <p class="text-xs text-slate-400 truncate">{{ authStore.user?.roles?.[0]?.name || 'Role' }}</p>
+            <p class="text-sm font-bold text-slate-700 truncate">{{ authStore.user?.name || 'User' }}</p>
+            <p class="text-xs text-slate-500 truncate">{{ authStore.user?.roles?.[0]?.name || 'Role' }}</p>
           </div>
           <button
             v-if="sidebarOpen"
             @click="handleLogout"
-            class="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
+            class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 hover:text-rose-600 transition-colors"
             title="Logout"
           >
             <LogOut class="h-4 w-4" />

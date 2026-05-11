@@ -7,6 +7,7 @@ import DataTable, { type Column } from '@/components/ui/DataTable.vue';
 import ModalForm from '@/components/ui/ModalForm.vue';
 import SearchableSelect from '@/components/ui/SearchableSelect.vue';
 import { Plus, Trash2, Edit2, Settings } from 'lucide-vue-next';
+import { useAuthStore } from '@/stores/auth';
 
 interface Semester {
   id: number;
@@ -46,6 +47,7 @@ interface ClassEntity {
 
 const toast = useToast();
 const confirm = useConfirm();
+const authStore = useAuthStore();
 
 const classColumns: Column[] = [
   { key: 'name', label: 'Nama Kelas' },
@@ -61,7 +63,8 @@ const loading = ref(false);
 const currentPage = ref(1);
 const perPage = ref(10);
 const searchQuery = ref('');
-const filterSemesterId = ref<number | null>(null);
+const filterSemesterId = ref<number | string | null>(null);
+const filterProdiId = ref<number | string | null>(null);
 
 const semesters = ref<Semester[]>([]);
 const prodis = ref<Prodi[]>([]);
@@ -73,7 +76,12 @@ const bulkActionType = ref<'trash' | 'restore' | 'forceDelete' | null>(null);
 const selectedItem = ref<ClassEntity | null>(null);
 const selectedIds = ref<number[]>([]);
 
-const form = ref({
+const form = ref<{
+  semesterId: number | string;
+  prodiId: number | string;
+  name: string;
+  quota: number;
+}>({
   semesterId: '',
   prodiId: '',
   name: '',
@@ -99,7 +107,7 @@ const fetchSemesters = async () => {
     // Auto-select active semester if creating
     const activeSemester = semesters.value.find((s: any) => s.isActive);
     if (activeSemester && actionType.value === 'create' && !form.value.semesterId) {
-      form.value.semesterId = activeSemester.id.toString();
+      form.value.semesterId = activeSemester.id;
     }
   } catch (error: any) {
     console.error('Gagal memuat Periode Akademik:', error);
@@ -107,6 +115,10 @@ const fetchSemesters = async () => {
 };
 
 const fetchProdis = async () => {
+  if (!authStore.hasPermission('prodis.view')) {
+    prodis.value = authStore.user?.staffProdiAccess?.map((a: any) => a.prodi).filter(Boolean) || [];
+    return;
+  }
   try {
     const res = await api.get('/prodis?limit=100');
     prodis.value = res.data?.data || res.data || [];
@@ -117,14 +129,6 @@ const fetchProdis = async () => {
 
 // fetchCourses and fetchLecturers removed
 
-const fetchStudents = async () => {
-  try {
-    const res = await api.get('/students?limit=2000');
-    allStudents.value = res.data?.data || [];
-  } catch (error: any) {
-    console.error('Gagal memuat list mahasiswa:', error);
-  }
-};
 
 const fetchData = async () => {
   loading.value = true;
@@ -135,6 +139,7 @@ const fetchData = async () => {
     });
     if (searchQuery.value) params.append('search', searchQuery.value);
     if (filterSemesterId.value) params.append('semesterId', filterSemesterId.value.toString());
+    if (filterProdiId.value) params.append('prodiId', filterProdiId.value.toString());
 
     const response = await api.get(`/classes?${params.toString()}`);
     data.value = response.data?.data || [];
@@ -146,14 +151,18 @@ const fetchData = async () => {
   }
 };
 
-onMounted(() => {
-  fetchSemesters();
+onMounted(async () => {
+  await fetchSemesters();
   fetchProdis();
-  fetchData();
-  fetchStudents();
+  const activeSemester = semesters.value.find((s: any) => s.isActive);
+  if (activeSemester) {
+    filterSemesterId.value = activeSemester.id;
+  } else {
+    fetchData();
+  }
 });
 
-watch([currentPage, perPage, searchQuery, filterSemesterId], () => {
+watch([currentPage, perPage, searchQuery, filterSemesterId, filterProdiId], () => {
   fetchData();
 });
 
@@ -162,8 +171,8 @@ const openModal = (type: 'create' | 'edit', item?: ClassEntity) => {
   if (type === 'edit' && item) {
     selectedItem.value = item;
     form.value = {
-      semesterId: item.semesterId.toString(),
-      prodiId: item.prodiId ? item.prodiId.toString() : '',
+      semesterId: item.semesterId,
+      prodiId: item.prodiId || '',
       name: item.name,
       quota: item.quota,
     };
@@ -171,8 +180,8 @@ const openModal = (type: 'create' | 'edit', item?: ClassEntity) => {
     selectedItem.value = null;
     const activeSemester = semesters.value.find((s: any) => s.isActive);
     form.value = { 
-      semesterId: activeSemester ? activeSemester.id.toString() : '', 
-      prodiId: '',
+      semesterId: activeSemester ? activeSemester.id : '', 
+      prodiId: authStore.hasAnyRole(['admin', 'superadmin']) ? '' : (authStore.allowedProdiIds.length > 0 ? authStore.allowedProdiIds[0] : ''),
       name: '', 
       quota: 40 
     };
@@ -187,8 +196,8 @@ const openModal = (type: 'create' | 'edit', item?: ClassEntity) => {
 const handleSubmit = async () => {
   try {
     const payload = {
-      semesterId: parseInt(form.value.semesterId),
-      prodiId: parseInt(form.value.prodiId),
+      semesterId: parseInt(form.value.semesterId as string),
+      prodiId: parseInt(form.value.prodiId as string),
       name: form.value.name,
       quota: form.value.quota,
     };
@@ -251,7 +260,7 @@ const openConfirmDialog = (action: 'trash' | 'restore' | 'forceDelete', item?: C
       </div>
       <div class="flex gap-2">
         <button
-          v-if="selectedIds.length > 0"
+          v-if="selectedIds.length > 0 && authStore.hasPermission('classes.delete')"
           @click="openConfirmDialog('trash')"
           class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
         >
@@ -259,6 +268,7 @@ const openConfirmDialog = (action: 'trash' | 'restore' | 'forceDelete', item?: C
           Hapus Terpilih ({{ selectedIds.length }})
         </button>
         <button
+          v-if="authStore.hasPermission('classes.create')"
           @click="openModal('create')"
           class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
         >
@@ -287,6 +297,14 @@ const openConfirmDialog = (action: 'trash' | 'restore' | 'forceDelete', item?: C
           placeholder="Semua Periode"
         />
       </div>
+      <div v-if="authStore.hasAnyRole(['admin', 'superadmin'])" class="w-64">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Program Studi</label>
+        <SearchableSelect
+          v-model="filterProdiId"
+          :options="prodiOptions"
+          placeholder="Semua Program Studi"
+        />
+      </div>
       <!-- Course Filter dihilangkan karena Rombel tidak memiliki satu specific course -->
     </div>
 
@@ -294,13 +312,13 @@ const openConfirmDialog = (action: 'trash' | 'restore' | 'forceDelete', item?: C
       :columns="classColumns"
       :data="data"
       :loading="loading"
-      :currentPage="currentPage"
+      :page="currentPage"
       :perPage="perPage"
-      :totalData="totalData"
+      :total="totalData"
       selectable
       v-model="selectedIds"
-      @update:currentPage="currentPage = $event"
-      @update:perPage="perPage = $event"
+      @page-change="currentPage = $event"
+      @per-page-change="perPage = $event"
     >
       <template #cell(name)="{ item }">
         <div class="font-medium text-blue-600 cursor-pointer hover:underline" @click="$router.push(`/classes/${item.id}`)">
@@ -332,6 +350,7 @@ const openConfirmDialog = (action: 'trash' | 'restore' | 'forceDelete', item?: C
         <div class="flex justify-end gap-2">
 <!-- Enroll dikelola per semester, bisa juga per rombel jika mau -->
           <button
+            v-if="authStore.hasPermission('classes.view')"
             @click="$router.push(`/classes/${item.id}`)"
             class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
             title="Kelola Matakuliah / Detail"
@@ -339,6 +358,7 @@ const openConfirmDialog = (action: 'trash' | 'restore' | 'forceDelete', item?: C
             <Settings class="w-4 h-4" />
           </button>
           <button
+            v-if="authStore.hasPermission('classes.update')"
             @click="openModal('edit', item)"
             class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
             title="Edit"
@@ -346,6 +366,7 @@ const openConfirmDialog = (action: 'trash' | 'restore' | 'forceDelete', item?: C
             <Edit2 class="w-4 h-4" />
           </button>
           <button
+            v-if="authStore.hasPermission('classes.delete')"
             @click="openConfirmDialog('trash', item)"
             class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             title="Hapus"
@@ -375,7 +396,7 @@ const openConfirmDialog = (action: 'trash' | 'restore' | 'forceDelete', item?: C
           />
           <p v-if="actionType === 'create'" class="text-xs text-gray-500 mt-1">Otomatis terisi dengan periode yang sedang aktif.</p>
         </div>
-        <div>
+        <div v-if="authStore.hasAnyRole(['admin', 'superadmin'])">
           <label class="block text-sm font-medium text-gray-700 mb-1">Program Studi *</label>
           <SearchableSelect
             v-model="form.prodiId"

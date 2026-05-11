@@ -22,6 +22,12 @@ export class ClassLecturer {
   @Column({ default: false })
   isPrimary: boolean;
 
+  @Column({ nullable: true, comment: 'Pertemuan mulai (misal 1)' })
+  meetingStart: number;
+
+  @Column({ nullable: true, comment: 'Pertemuan selesai (misal 8)' })
+  meetingEnd: number;
+
   @ManyToOne(() => ClassCourse, (cc) => cc.classLecturers, {
     onDelete: 'CASCADE',
   })

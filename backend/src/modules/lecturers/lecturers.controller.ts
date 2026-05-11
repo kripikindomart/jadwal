@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -29,18 +30,36 @@ export class LecturersController {
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'prodiId', required: false })
   @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'ignoreProdiScope', required: false })
   findAll(
+    @Req() req: any,
     @Query('page') page?: string,
     @Query('perPage') perPage?: string,
     @Query('search') search?: string,
     @Query('prodiId') prodiId?: string,
     @Query('status') status?: 'active' | 'trash' | 'all',
+    @Query('ignoreProdiScope') ignoreProdiScope?: string,
   ) {
+    const user = req.user;
+    const isSuperAdminOrAdmin = user.roles?.some((r: any) => r.slug === 'superadmin' || r.slug === 'admin');
+    let finalProdiId: number | number[] | undefined = prodiId ? +prodiId : undefined;
+    
+    if (!isSuperAdminOrAdmin && ignoreProdiScope !== 'true') {
+      const allowedProdiIds = user.staffProdiAccess?.map((a: any) => a.prodiId) || [];
+      if (allowedProdiIds.length > 0) {
+        if (!finalProdiId || !allowedProdiIds.includes(finalProdiId as number)) {
+          finalProdiId = allowedProdiIds;
+        }
+      } else if (user.roles?.some((r: any) => r.slug === 'staff')) {
+        finalProdiId = -1;
+      }
+    }
+
     return this.service.findAll({
       page: page ? +page : 1,
       perPage: perPage ? +perPage : 10,
       search,
-      prodiId: prodiId ? +prodiId : undefined,
+      prodiId: finalProdiId,
       status: status || 'active',
     });
   }

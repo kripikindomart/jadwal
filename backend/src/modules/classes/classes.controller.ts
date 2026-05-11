@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   ParseIntPipe,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -37,16 +38,33 @@ export class ClassesController {
   @RequirePermissions('classes.view')
   @ApiOperation({ summary: 'Mendapatkan daftar kelas' })
   findAll(
+    @Req() req: any,
     @Query('page') page?: string,
     @Query('limit', new ParseIntPipe({ optional: true })) perPage?: number,
     @Query('search') search?: string,
     @Query('courseId') courseId?: string,
     @Query('semesterId') semesterId?: string,
+    @Query('prodiId') prodiId?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = perPage || 10;
     const pCourseId = courseId ? parseInt(courseId, 10) : undefined;
     const pSemesterId = semesterId ? parseInt(semesterId, 10) : undefined;
+    
+    const user = req.user;
+    const isSuperAdminOrAdmin = user.roles?.some((r: any) => r.slug === 'superadmin' || r.slug === 'admin');
+    let finalProdiId: number | number[] | undefined = prodiId ? +prodiId : undefined;
+    
+    if (!isSuperAdminOrAdmin) {
+      const allowedProdiIds = user.staffProdiAccess?.map((a: any) => a.prodiId) || [];
+      if (allowedProdiIds.length > 0) {
+        if (!finalProdiId || !allowedProdiIds.includes(finalProdiId as number)) {
+          finalProdiId = allowedProdiIds;
+        }
+      } else if (user.roles?.some((r: any) => r.slug === 'staff')) {
+        finalProdiId = -1;
+      }
+    }
 
     return this.classesService.findAll(
       pageNum,
@@ -54,6 +72,7 @@ export class ClassesController {
       search,
       pCourseId,
       pSemesterId,
+      finalProdiId,
     );
   }
 

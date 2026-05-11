@@ -8,6 +8,7 @@ const props = defineProps<{
   loading?: boolean
   submitText?: string
   maxWidth?: string
+  headerClass?: string
 }>()
 
 const emit = defineEmits(['update:modelValue', 'submit'])
@@ -68,11 +69,11 @@ onUnmounted(() => {
           :class="['relative w-full rounded-2xl bg-white shadow-xl flex flex-col max-h-[90vh]', maxWidth || 'max-w-lg']"
         >
           <!-- Header -->
-          <div class="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-            <h3 class="text-lg font-semibold text-slate-800">{{ title }}</h3>
+          <div :class="['flex items-center justify-between border-b border-slate-100 px-6 py-4 rounded-t-2xl', headerClass || 'bg-white']">
+            <h3 :class="['text-lg font-semibold', headerClass && headerClass.includes('text-white') ? 'text-white' : 'text-slate-800']">{{ title }}</h3>
             <button
               @click="close"
-              class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              :class="['rounded-lg p-1.5 transition-colors', headerClass && headerClass.includes('text-white') ? 'text-white/80 hover:bg-white/20 hover:text-white' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600']"
             >
               <X class="h-5 w-5" />
             </button>

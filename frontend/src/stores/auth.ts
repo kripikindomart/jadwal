@@ -7,6 +7,7 @@ interface UserInfo {
   name: string;
   email: string;
   roles: { id: number; name: string; slug: string; permissions: string[] }[];
+  staffProdiAccess?: { prodiId: number }[];
 }
 
 export const useAuthStore = defineStore("auth", () => {
@@ -25,6 +26,7 @@ export const useAuthStore = defineStore("auth", () => {
     });
     return Array.from(perms);
   });
+  const allowedProdiIds = computed(() => user.value?.staffProdiAccess?.map((a) => a.prodiId) || []);
 
   function setTokens(access: string, refresh: string) {
     accessToken.value = access;
@@ -95,5 +97,6 @@ export const useAuthStore = defineStore("auth", () => {
     hasAnyRole,
     hasPermission,
     hasAnyPermission,
+    allowedProdiIds,
   };
 });
