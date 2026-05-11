@@ -55,11 +55,22 @@ const compiledHTML = computed(() => {
   }
 
   let templateText = templateObj.htmlContent
+  let globalFontFamily = "'Times New Roman', Times, serif"
+  let globalFontSize = "12"
+  let tembusanFontSize = "10"
 
   if (templateObj.editorType === 'form') {
     try {
       const formData = JSON.parse(templateText)
       let generatedHtml = ''
+      
+      if (formData.identityTable) {
+        globalFontFamily = formData.identityTable.fontFamily || globalFontFamily
+        globalFontSize = formData.identityTable.fontSize || globalFontSize
+      }
+      if (formData.tembusanFontSize) {
+        tembusanFontSize = formData.tembusanFontSize
+      }
       
       // 1. Metadata Table
       let metadataRows = []
@@ -68,7 +79,7 @@ const compiledHTML = computed(() => {
       if (formData.metadata.showPerihal) metadataRows.push({ label: 'Perihal', tag: '[perihal]' })
 
       if (metadataRows.length > 0) {
-        let metaHtml = `<table style="width:100%; border-collapse:collapse; margin-bottom:20px; border: none;"><tbody>`
+        let metaHtml = `<table style="width:100%; border-collapse:collapse; margin-bottom:20px; border: none; font-family: ${globalFontFamily}; font-size: ${globalFontSize}pt;"><tbody>`
         metadataRows.forEach((row, idx) => {
           let rightCol = ''
           if (idx === 0) {
@@ -79,7 +90,7 @@ const compiledHTML = computed(() => {
         metaHtml += `</tbody></table>`
         generatedHtml += metaHtml
       } else {
-        generatedHtml += `<div style="text-align:right; margin-bottom: 20px;">Bogor, [tanggal_surat]</div>`
+        generatedHtml += `<div style="text-align:right; margin-bottom: 20px; font-family: ${globalFontFamily}; font-size: ${globalFontSize}pt;">Bogor, [tanggal_surat]</div>`
       }
 
       let contentHtml = ''
@@ -92,7 +103,7 @@ const compiledHTML = computed(() => {
         
         // Match ALL <p> tags (with or without attributes) and inject styles
         processedHtml = processedHtml.replace(/<p(\s[^>]*)?>|<p>/gi, (match, attrs) => {
-          const baseStyle = `text-align: justify; margin: 0 0 0.5em 0; margin-left: ${indent}; line-height: 1.5;`
+          const baseStyle = `text-align: justify; margin: 0 0 0.5em 0; margin-left: ${indent}; line-height: 1.5; font-family: ${globalFontFamily}; font-size: ${globalFontSize}pt; color: black;`
           if (!attrs || attrs.trim() === '') {
             return `<p style="${baseStyle}">`
           }
@@ -106,7 +117,7 @@ const compiledHTML = computed(() => {
 
       if (formData.metadata.tujuan) {
         contentHtml += `
-          <div style="text-align:left; margin-bottom: 20px; margin-left: 103px; line-height: 1.5;">
+          <div style="text-align:left; margin-bottom: 20px; margin-left: 103px; line-height: 1.5; font-family: ${globalFontFamily}; font-size: ${globalFontSize}pt; color: black;">
             Kepada Yth.<br>${formData.metadata.tujuan.replace(/\n/g, '<br>')}
           </div>
         `
@@ -134,7 +145,7 @@ const compiledHTML = computed(() => {
           `
         })
         contentHtml += `
-          <table style="width:calc(100% - 103px - 1.5cm); border-collapse:collapse; margin:12px 0 12px calc(103px + 1.5cm); border: none;">
+          <table style="width:calc(100% - 103px - 1.5cm); border-collapse:collapse; margin:12px 0 12px calc(103px + 1.5cm); border: none; font-family: ${globalFontFamily}; font-size: ${globalFontSize}pt;">
             <tbody>${idRows}</tbody>
           </table>
         `
@@ -252,7 +263,7 @@ const compiledHTML = computed(() => {
 
   // Build bottom section: Signature and Tembusan
   let bottomHtml = ''
-  const hasSignature = templateObj.signatureType === 'barcode' || templateObj.signatureImageUrl || templateObj.signatureName
+  const hasSignature = ['barcode', 'both', 'manual'].includes(templateObj.signatureType) || templateObj.signatureImageUrl || templateObj.signatureName
   const hasTembusan = templateObj.tembusanText && templateObj.tembusanText.trim()
 
   if (hasSignature || hasTembusan) {
@@ -276,6 +287,18 @@ const compiledHTML = computed(() => {
           <img src="${barcodeUrl}" alt="QR Code" style="display: block; height: 70px; width: 70px; margin: 8px auto 4px auto;" />
           <p style="margin: 0 0 8px 0; font-size: 9px; color: #333; font-style: italic;">Dokumen ini telah ditandatangani secara elektronik</p>
         `
+      } else if (templateObj.signatureType === 'both') {
+        const verifyUrl = requestData.value.ticketNumber ? `${window.location.origin}/layanan-surat/track/${requestData.value.ticketNumber}` : ''
+        const barcodeUrl = verifyUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(verifyUrl)}&margin=0` : ''
+        const ttdHtml = templateObj.signatureImageUrl ? `<img src="${templateObj.signatureImageUrl}" alt="TTD" style="display: block; max-height: 80px; width: auto; mix-blend-mode: multiply;" />` : '<div style="height: 60px; width: 80px;"></div>'
+        
+        signatureImageHtml = `
+          <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin: 8px 0;">
+            ${barcodeUrl ? `<img src="${barcodeUrl}" alt="QR Code" style="display: block; height: 60px; width: 60px;" />` : ''}
+            ${ttdHtml}
+          </div>
+          <p style="margin: 0 0 8px 0; font-size: 9px; color: #333; font-style: italic;">Dokumen ini sah secara elektronik</p>
+        `
       } else if (templateObj.signatureImageUrl) {
         signatureImageHtml = `<img src="${templateObj.signatureImageUrl}" alt="TTD" style="display: block; max-height: 100px; width: auto; mix-blend-mode: multiply; margin: 8px auto;" />`
       } else {
@@ -283,11 +306,11 @@ const compiledHTML = computed(() => {
       }
 
       bottomHtml += `
-        <div style="text-align: center; width: 280px; color: black;">
-          ${signatureLocation ? `<p style="margin-bottom: 5px; font-size: 14px; color: black;">${signatureLocation}</p>` : ''}
-          <p style="margin: 0; font-size: 14px; color: black;">${signatureTitle}</p>
+        <div style="text-align: center; width: 280px; color: black; font-family: ${globalFontFamily};">
+          ${signatureLocation ? `<p style="margin-bottom: 5px; font-size: ${globalFontSize}pt; color: black;">${signatureLocation}</p>` : ''}
+          <p style="margin: 0; font-size: ${globalFontSize}pt; color: black;">${signatureTitle}</p>
           ${signatureImageHtml}
-          <p style="margin: 0; font-weight: bold; font-size: 14px; text-decoration: underline; color: black;">${signatureName}</p>
+          <p style="margin: 0; font-weight: bold; font-size: ${globalFontSize}pt; text-decoration: underline; color: black;">${signatureName}</p>
         </div>`
     }
 
@@ -297,9 +320,9 @@ const compiledHTML = computed(() => {
     if (hasTembusan) {
       const tembusanLines = templateObj.tembusanText.trim().split('\n').map((l: string) => `<li style="margin-bottom: 2px; color: black;">${l.replace(/^\d+\.\s*/, '')}</li>`).join('')
       bottomHtml += `
-        <div style="width: 100%; text-align: left; margin-top: 20px; color: black;">
+        <div style="width: 100%; text-align: left; margin-top: 20px; color: black; font-family: ${globalFontFamily}; font-size: ${tembusanFontSize}pt;">
           <p style="margin-bottom: 5px; color: black;">Tembusan Yth:</p>
-          <ol style="margin: 0; padding-left: 18px; font-size: 12px; color: black;">${tembusanLines}</ol>
+          <ol style="margin: 0; padding-left: 18px; color: black; list-style-type: decimal;">${tembusanLines}</ol>
         </div>`
     }
 
@@ -316,11 +339,24 @@ onMounted(() => {
 
 <template>
   <div class="print-container">
+    <component :is="'style'">
+      @page {
+        size: auto;
+        margin: 0mm;
+      }
+    </component>
+    
     <div v-if="loading" class="no-print" style="text-align: center; padding: 50px; font-family: sans-serif;">
       Memuat dokumen...
     </div>
     
-    <div v-else class="print-content" v-html="compiledHTML"></div>
+    <div v-else 
+         class="print-content" 
+         :style="{
+           width: requestData?.letterType?.template?.paperSize === 'F4' ? '21.5cm' : '21cm',
+           minHeight: requestData?.letterType?.template?.paperSize === 'F4' ? '33cm' : '29.7cm'
+         }"
+         v-html="compiledHTML"></div>
 
     <!-- Print Control Buttons (Hidden during actual printing) -->
     <div v-if="!loading" class="no-print print-controls">
@@ -363,8 +399,6 @@ body, html {
 
 .print-content {
   background: white;
-  width: 21cm;
-  min-height: 29.7cm;
   padding: 0.5cm 1.5cm;
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
   box-sizing: border-box;
@@ -418,43 +452,36 @@ body, html {
 
 /* ACTUAL PRINT MEDIA QUERIES */
 @media print {
-  @page {
-    size: A4;
-    margin: 0; /* Let the content padding handle margins */
-  }
-  
   body, html {
-    background-color: white;
+    background-color: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   
-  .print-container {
-    padding: 0;
+  #app, .print-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    background-color: white !important;
   }
   
   .print-content {
-    box-shadow: none;
-    width: 100%;
-    margin: 0;
-    /* Use exact padding for print */
-    padding: 0.5cm 1.5cm;
-    /* Attempt to coerce everything onto one page if possible */
+    background-color: white !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100vh !important;
+    /* 1cm top padding provides a professional margin without being "mentok" */
+    padding: 1cm 1.5cm 0.5cm 1.5cm !important;
     page-break-inside: avoid;
     break-inside: avoid;
+    border: none !important;
   }
   
   /* Aggressively prevent breaking signature/footer apart from the text */
   .print-content > div:last-child {
     page-break-inside: avoid;
     break-inside: avoid;
-  }
-  
-  /* Scale down slightly if content is too long */
-  @page {
-    margin: 0;
-  }
-  body {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
   }
   
   .no-print {

@@ -152,6 +152,22 @@ const headerEditorInit = {
   }
 }
 
+const formEditorInit = {
+  height: 250,
+  menubar: false,
+  promotion: false,
+  skin: false,
+  content_css: false,
+  resize: true,
+  plugins: ['lists', 'link', 'image', 'code', 'table'],
+  toolbar: 'undo redo | fontfamily fontsize | bold italic underline | alignleft aligncenter alignright alignjustify | table tablecellprops tablerowprops | bullist numlist | code',
+  content_style: `
+    ${contentCss}
+    ${contentUiCss}
+    body { font-family: 'Times New Roman', Times, serif; font-size: 14pt; padding: 8px; margin: 0; line-height: 1.5; }
+  `
+}
+
 // ========== TABLE HELPERS ==========
 const insertHtmlAtCursor = (text: string) => {
   if (templateData.value.editorType === 'tiptap' && tiptapEditorRef.value?.editor) {
@@ -239,6 +255,8 @@ const formData = ref({
   openingText: '<p>Dengan hormat,</p>',
   identityTable: {
     show: true,
+    fontSize: 12,
+    fontFamily: "'Times New Roman', Times, serif",
     fields: [
       { key: 'Nama', tag: '[nama]' },
       { key: 'NIM', tag: '[nim]' },
@@ -246,7 +264,8 @@ const formData = ref({
     ]
   },
   bodyText: '<p>Tulis isi surat di sini...</p>',
-  closingText: '<p>Demikian surat ini kami sampaikan...</p>'
+  closingText: '<p>Demikian surat ini kami sampaikan...</p>',
+  tembusanFontSize: 10
 })
 
 const headerFormData = ref({
@@ -463,6 +482,8 @@ const openPreview = () => {
     // Identity Table (Indented relative to Nomor text)
     if (fd.identityTable?.show && fd.identityTable.fields?.length) {
       let idRows = ''
+      const tbFontFamily = fd.identityTable.fontFamily || "'Times New Roman', Times, serif"
+      const tbFontSize = fd.identityTable.fontSize || 12
       fd.identityTable.fields.forEach((f: any) => {
         idRows += `
           <tr>
@@ -473,7 +494,7 @@ const openPreview = () => {
         `
       })
       contentHtml += `
-        <table style="width:calc(100% - 103px - 1.5cm); border-collapse:collapse; margin:12px 0 12px calc(103px + 1.5cm); border: none;">
+        <table style="width:calc(100% - 103px - 1.5cm); border-collapse:collapse; margin:12px 0 12px calc(103px + 1.5cm); border: none; font-family: ${tbFontFamily}; font-size: ${tbFontSize}pt;">
           <tbody>${idRows}</tbody>
         </table>
       `
@@ -789,6 +810,26 @@ const insertVariable = (tag: string) => {
                   <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-800">
                     <strong>Mode Form Blok:</strong> Mode ini secara otomatis mengatur tabel identitas dan jarak paragraf agar saat dicetak tidak berantakan. Anda cukup mengisi teks pada setiap bagian di bawah ini.
                   </div>
+                  <!-- Blok Pengaturan Tampilan Dokumen -->
+                  <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                    <h3 class="text-sm font-bold text-gray-800 mb-3 border-b border-gray-100 pb-2">Pengaturan Tampilan Dokumen (Global)</h3>
+                    <div class="flex items-center gap-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div class="flex items-center gap-2">
+                        <label class="text-xs font-semibold text-gray-600">Font:</label>
+                        <select v-model="formData.identityTable.fontFamily" class="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-indigo-600 outline-none">
+                          <option value="'Times New Roman', Times, serif">Times New Roman</option>
+                          <option value="Arial, Helvetica, sans-serif">Arial</option>
+                          <option value="'Courier New', Courier, monospace">Courier New</option>
+                        </select>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <label class="text-xs font-semibold text-gray-600">Ukuran (pt):</label>
+                        <input v-model="formData.identityTable.fontSize" type="number" class="w-16 px-2 py-1 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-indigo-600 outline-none" />
+                      </div>
+                      <span class="text-xs text-gray-500 italic ml-2">*Berlaku untuk Kop, Tabel Identitas, Paragraf, Tanda Tangan, dan Tembusan</span>
+                    </div>
+                  </div>
+
                   <!-- Blok Metadata -->
                   <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
                     <h3 class="text-sm font-bold text-gray-800 mb-3 border-b border-gray-100 pb-2">1. Informasi Surat (Kiri & Kanan Atas)</h3>
@@ -809,7 +850,7 @@ const insertVariable = (tag: string) => {
                   <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
                     <h3 class="text-sm font-bold text-gray-800 mb-3 border-b border-gray-100 pb-2">2. Paragraf Pembuka</h3>
                     <div class="border border-gray-200 rounded-lg overflow-hidden">
-                      <TiptapEditor v-model="formData.openingText" min-height="150px" />
+                      <Editor v-model="formData.openingText" :init="formEditorInit" />
                     </div>
                   </div>
 
@@ -834,7 +875,7 @@ const insertVariable = (tag: string) => {
                   <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
                     <h3 class="text-sm font-bold text-gray-800 mb-3 border-b border-gray-100 pb-2">4. Isi Surat Utama</h3>
                     <div class="border border-gray-200 rounded-lg overflow-hidden">
-                      <TiptapEditor v-model="formData.bodyText" min-height="250px" />
+                      <Editor v-model="formData.bodyText" :init="formEditorInit" />
                     </div>
                   </div>
 
@@ -842,7 +883,7 @@ const insertVariable = (tag: string) => {
                   <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
                     <h3 class="text-sm font-bold text-gray-800 mb-3 border-b border-gray-100 pb-2">5. Paragraf Penutup</h3>
                     <div class="border border-gray-200 rounded-lg overflow-hidden">
-                      <TiptapEditor v-model="formData.closingText" min-height="150px" />
+                      <Editor v-model="formData.closingText" :init="formEditorInit" />
                     </div>
                   </div>
                 </div>
@@ -878,7 +919,13 @@ const insertVariable = (tag: string) => {
          <div class="mt-8 flex flex-wrap gap-4 w-full max-w-[21cm]">
            <!-- LEFT: Tembusan Panel -->
            <div class="flex-1 min-w-[200px] p-4 border border-dashed border-amber-300 rounded-xl bg-amber-50 shadow-sm">
-             <h3 class="text-sm font-bold text-amber-800 mb-3 border-b border-amber-200 pb-2">Tembusan (Opsional)</h3>
+             <div class="flex items-center justify-between mb-3 border-b border-amber-200 pb-2">
+               <h3 class="text-sm font-bold text-amber-800">Tembusan (Opsional)</h3>
+               <div v-if="templateData.editorType === 'form'" class="flex items-center gap-2">
+                 <label class="text-xs text-amber-800 font-semibold">Ukuran Font (pt):</label>
+                 <input type="number" v-model="formData.tembusanFontSize" class="w-16 px-2 py-1 border border-amber-300 rounded text-xs focus:ring-2 focus:ring-amber-500 outline-none bg-white" min="8" max="24" />
+               </div>
+             </div>
              <textarea v-model="templateData.tembusanText" rows="5" placeholder="1. Yth. Rektor UIKA&#10;2. Yth. Dekan Fakultas X&#10;3. Arsip"
                class="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none bg-white resize-y"></textarea>
              <p class="text-xs text-amber-600 mt-1">Satu item per baris. Akan muncul di pojok kiri bawah surat.</p>
@@ -916,6 +963,7 @@ const insertVariable = (tag: string) => {
                <select v-model="templateData.signatureType" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-600">
                  <option value="manual">Gambar (Manual Upload)</option>
                  <option value="barcode">Digital (QR Barcode otomatis)</option>
+                 <option value="both">Keduanya (TTD + Barcode Validasi)</option>
                </select>
              </div>
 
@@ -926,7 +974,7 @@ const insertVariable = (tag: string) => {
              </div>
 
              <!-- Form for manual signature image -->
-             <div v-if="templateData.signatureType === 'manual'" class="flex flex-col items-center">
+             <div v-if="templateData.signatureType === 'manual' || templateData.signatureType === 'both'" class="flex flex-col items-center">
                <div v-if="templateData.signatureImageUrl" class="relative group w-full mb-2">
                  <img :src="templateData.signatureImageUrl" alt="Tanda Tangan" class="h-28 w-auto mx-auto object-contain rounded drop-shadow-sm mix-blend-multiply" />
                  <div class="absolute inset-0 bg-white/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">
