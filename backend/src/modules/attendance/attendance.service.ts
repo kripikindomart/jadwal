@@ -43,6 +43,7 @@ export class AttendanceService {
 
     const today = new Date();
     const dayOfWeek = today.getDay();
+    const todayStr = today.toISOString().split('T')[0];
 
     let query = this.scheduleRepository
       .createQueryBuilder('cs')
@@ -52,7 +53,7 @@ export class AttendanceService {
       .leftJoinAndSelect('cs.room', 'room')
       .leftJoinAndSelect('cc.classLecturers', 'clec')
       .leftJoinAndSelect('clec.lecturer', 'lecturer')
-      .where('cs.dayOfWeek = :dayOfWeek', { dayOfWeek })
+      .where('(cs.date = :todayStr OR (cs.date IS NULL AND cs.dayOfWeek = :dayOfWeek))', { todayStr, dayOfWeek })
       .andWhere('cl.semesterId = :semesterId', {
         semesterId: activeSemester.id,
       });

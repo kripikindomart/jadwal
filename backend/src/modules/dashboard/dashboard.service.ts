@@ -64,12 +64,13 @@ export class DashboardService {
     // Count today's classes
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0=Sunday, 1=Monday...
+    const todayStr = today.toISOString().split('T')[0];
 
     let todayClassesQuery = this.classScheduleRepository
       .createQueryBuilder('cs')
       .leftJoin('cs.classCourse', 'cc')
       .leftJoin('cc.class', 'cl')
-      .where('cs.dayOfWeek = :dayOfWeek', { dayOfWeek });
+      .where('(cs.date = :todayStr OR (cs.date IS NULL AND cs.dayOfWeek = :dayOfWeek))', { todayStr, dayOfWeek });
 
     if (activeSemester) {
       todayClassesQuery = todayClassesQuery.andWhere(
@@ -126,6 +127,7 @@ export class DashboardService {
 
     const today = new Date();
     const dayOfWeek = today.getDay();
+    const todayStr = today.toISOString().split('T')[0];
 
     let query = this.classScheduleRepository
       .createQueryBuilder('cs')
@@ -135,7 +137,7 @@ export class DashboardService {
       .leftJoinAndSelect('cs.room', 'room')
       .leftJoinAndSelect('cc.classLecturers', 'clec')
       .leftJoinAndSelect('clec.lecturer', 'lecturer')
-      .where('cs.dayOfWeek = :dayOfWeek', { dayOfWeek });
+      .where('(cs.date = :todayStr OR (cs.date IS NULL AND cs.dayOfWeek = :dayOfWeek))', { todayStr, dayOfWeek });
 
     if (activeSemester) {
       query = query.andWhere('cl.semesterId = :semesterId', {
