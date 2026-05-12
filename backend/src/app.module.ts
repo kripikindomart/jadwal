@@ -21,6 +21,7 @@ import { LecturerPortalModule } from './modules/lecturer-portal/lecturer-portal.
 import { DisplayModule } from './modules/display/display.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { ExportModule } from './modules/export/export.module';
 @Module({
   imports: [
     // Global config
@@ -66,6 +67,7 @@ import { AuditModule } from './modules/audit/audit.module';
     DisplayModule,
     NotificationsModule,
     AuditModule,
+    ExportModule,
   ],
 })
 export class AppModule {}
