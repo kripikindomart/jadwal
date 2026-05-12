@@ -32,3 +32,4 @@ export { Assignment } from './assignment.entity';
 export { Submission } from './submission.entity';
 export { StudentAttendance } from './student-attendance.entity';
 export { StudentGrade } from './student-grade.entity';
+export { Notification } from './notification.entity';

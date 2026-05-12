@@ -17,6 +17,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { AttendanceModule } from './modules/attendance/attendance.module';
 import { LecturerPortalModule } from './modules/lecturer-portal/lecturer-portal.module';
+import { DisplayModule } from './modules/display/display.module';
 @Module({
   imports: [
     // Global config
@@ -53,6 +54,7 @@ import { LecturerPortalModule } from './modules/lecturer-portal/lecturer-portal.
     SettingsModule,
     AttendanceModule,
     LecturerPortalModule,
+    DisplayModule,
   ],
 })
 export class AppModule {}

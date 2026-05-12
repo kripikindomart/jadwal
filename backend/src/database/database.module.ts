@@ -22,6 +22,7 @@ import {
   Submission,
   StudentAttendance,
   StudentGrade,
+  Notification,
 } from './entities';
 
 const entities = [
@@ -46,6 +47,7 @@ const entities = [
   Submission,
   StudentAttendance,
   StudentGrade,
+  Notification,
 ];
 
 @Global()

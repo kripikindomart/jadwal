@@ -279,6 +279,13 @@ const router = createRouter({
 
     // Public Letters (Mahasiswa)
     {
+      path: "/display/tv",
+      name: "display.tv",
+      component: () => import("@/pages/display/DisplayTvPage.vue"),
+      meta: { public: true, layout: "blank" },
+    },
+
+    {
       path: "/dosen/:token",
       name: "lecturer.portal.home",
       component: () => import("@/pages/lecturer-portal/LecturerPortalHome.vue"),
