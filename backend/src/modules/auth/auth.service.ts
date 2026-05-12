@@ -182,4 +182,31 @@ export class AuthService {
       refreshToken: hashedRefreshToken,
     });
   }
+
+  async updateProfile(userId: number, data: { name?: string; email?: string; phone?: string }) {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+
+    if (data.name) user.name = data.name;
+    if (data.email) user.email = data.email;
+    if (data.phone !== undefined) user.phone = data.phone;
+
+    await this.usersRepository.save(user);
+    return { message: 'Profil berhasil diperbarui' };
+  }
+
+  async changePassword(userId: number, currentPassword: string, newPassword: string) {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+
+    const isValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isValid) {
+      throw new UnauthorizedException('Password saat ini salah');
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await this.usersRepository.save(user);
+
+    return { message: 'Password berhasil diubah' };
+  }
 }

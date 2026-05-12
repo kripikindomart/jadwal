@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Patch,
   Body,
   Get,
   HttpCode,
@@ -9,7 +10,6 @@ import {
 import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto, RefreshTokenDto } from './dto/auth.dto';
 import { Public, CurrentUser } from '../../common/decorators';
-import { User } from '../../database/entities';
 
 @Controller('api/auth')
 export class AuthController {
@@ -44,5 +44,21 @@ export class AuthController {
   @Get('profile')
   getProfile(@CurrentUser('id') userId: number) {
     return this.authService.getProfile(userId);
+  }
+
+  @Patch('profile')
+  updateProfile(
+    @CurrentUser('id') userId: number,
+    @Body() body: { name?: string; email?: string; phone?: string },
+  ) {
+    return this.authService.updateProfile(userId, body);
+  }
+
+  @Patch('change-password')
+  changePassword(
+    @CurrentUser('id') userId: number,
+    @Body() body: { currentPassword: string; newPassword: string },
+  ) {
+    return this.authService.changePassword(userId, body.currentPassword, body.newPassword);
   }
 }

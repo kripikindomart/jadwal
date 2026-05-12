@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import api from '@/lib/api'
 import {
   LayoutDashboard,
   GraduationCap,
@@ -22,6 +23,9 @@ import {
   ClipboardList,
   Mail,
   Tags,
+  User,
+  Lock,
+  Check,
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -32,12 +36,117 @@ const sidebarOpen = ref(true)
 const mobileSidebarOpen = ref(false)
 const openSubmenu = ref<string | null>(null)
 
+// Notification state
+const showNotifDropdown = ref(false)
+const notifications = ref<any[]>([])
+const unreadCount = ref(0)
+
+// User dropdown state
+const showUserDropdown = ref(false)
+
+// Profile modal state
+const showProfileModal = ref(false)
+const showPasswordModal = ref(false)
+const profileForm = ref({ name: '', email: '', phone: '' })
+const passwordForm = ref({ currentPassword: '', newPassword: '', confirmPassword: '' })
+const profileSaving = ref(false)
+const passwordSaving = ref(false)
+
 interface MenuItem {
   label: string
   icon: any
   to?: string
   children?: { label: string; to: string; icon: any }[]
 }
+
+// ============ Notifications ============
+async function fetchNotifications() {
+  try {
+    const { data } = await api.get('/notifications?limit=5')
+    notifications.value = data.notifications || []
+    unreadCount.value = data.unreadCount || 0
+  } catch { /* silent */ }
+}
+
+async function markAsRead(id: number) {
+  await api.patch(`/notifications/${id}/read`)
+  fetchNotifications()
+}
+
+async function markAllRead() {
+  await api.patch('/notifications/read-all')
+  fetchNotifications()
+}
+
+// ============ User Profile ============
+function openProfile() {
+  showUserDropdown.value = false
+  profileForm.value = {
+    name: authStore.user?.name || '',
+    email: authStore.user?.email || '',
+    phone: '',
+  }
+  showProfileModal.value = true
+}
+
+async function saveProfile() {
+  profileSaving.value = true
+  try {
+    await api.patch('/auth/profile', profileForm.value)
+    await authStore.fetchProfile()
+    showProfileModal.value = false
+  } catch (e: any) {
+    alert(e.response?.data?.message || 'Gagal menyimpan profil')
+  } finally {
+    profileSaving.value = false
+  }
+}
+
+function openChangePassword() {
+  showUserDropdown.value = false
+  passwordForm.value = { currentPassword: '', newPassword: '', confirmPassword: '' }
+  showPasswordModal.value = true
+}
+
+async function savePassword() {
+  if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
+    alert('Password baru dan konfirmasi tidak cocok')
+    return
+  }
+  if (passwordForm.value.newPassword.length < 6) {
+    alert('Password minimal 6 karakter')
+    return
+  }
+  passwordSaving.value = true
+  try {
+    await api.patch('/auth/change-password', {
+      currentPassword: passwordForm.value.currentPassword,
+      newPassword: passwordForm.value.newPassword,
+    })
+    alert('Password berhasil diubah')
+    showPasswordModal.value = false
+  } catch (e: any) {
+    alert(e.response?.data?.message || 'Gagal mengubah password')
+  } finally {
+    passwordSaving.value = false
+  }
+}
+
+// Close dropdowns on outside click
+function handleOutsideClick(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (!target.closest('.notif-dropdown-area')) showNotifDropdown.value = false
+  if (!target.closest('.user-dropdown-area')) showUserDropdown.value = false
+}
+
+onMounted(() => {
+  fetchNotifications()
+  document.addEventListener('click', handleOutsideClick)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleOutsideClick)
+})
 
 const menuItems = computed(() => {
   const items: MenuItem[] = [
@@ -319,20 +428,71 @@ async function handleLogout() {
 
         <div class="flex items-center gap-3">
           <!-- Notifications -->
-          <button class="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors">
-            <Bell class="h-5 w-5" />
-            <span class="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white">
-              3
-            </span>
-          </button>
+          <div class="relative notif-dropdown-area">
+            <button @click.stop="showNotifDropdown = !showNotifDropdown" class="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors">
+              <Bell class="h-5 w-5" />
+              <span v-if="unreadCount > 0" class="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white">
+                {{ unreadCount > 9 ? '9+' : unreadCount }}
+              </span>
+            </button>
+
+            <!-- Notification Dropdown -->
+            <div v-if="showNotifDropdown" class="absolute right-0 top-12 w-80 rounded-xl bg-white border border-slate-200 shadow-xl z-50 overflow-hidden">
+              <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                <h3 class="text-sm font-bold text-slate-800">Notifikasi</h3>
+                <button v-if="unreadCount > 0" @click="markAllRead" class="text-xs text-emerald-600 hover:underline">Tandai semua dibaca</button>
+              </div>
+              <div class="max-h-72 overflow-y-auto">
+                <div v-if="notifications.length === 0" class="p-6 text-center text-sm text-slate-400">
+                  Tidak ada notifikasi
+                </div>
+                <div v-for="n in notifications" :key="n.id"
+                  @click="markAsRead(n.id)"
+                  :class="['px-4 py-3 border-b border-slate-50 cursor-pointer hover:bg-slate-50 transition-colors', !n.isRead ? 'bg-emerald-50/50' : '']">
+                  <div class="flex items-start gap-2">
+                    <div :class="['h-2 w-2 rounded-full mt-1.5 shrink-0', !n.isRead ? 'bg-emerald-500' : 'bg-transparent']"></div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm font-medium text-slate-700 truncate">{{ n.title }}</p>
+                      <p class="text-xs text-slate-500 mt-0.5 line-clamp-2">{{ n.message }}</p>
+                      <p class="text-[10px] text-slate-400 mt-1">{{ new Date(n.createdAt).toLocaleString('id-ID') }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <!-- User Menu -->
-          <div class="hidden sm:flex items-center gap-2 rounded-xl px-3 py-1.5 hover:bg-slate-100 cursor-pointer transition-colors">
-            <div class="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-sm font-bold">
-              {{ authStore.user?.name?.charAt(0)?.toUpperCase() || 'A' }}
+          <div class="relative user-dropdown-area">
+            <button @click.stop="showUserDropdown = !showUserDropdown" class="hidden sm:flex items-center gap-2 rounded-xl px-3 py-1.5 hover:bg-slate-100 transition-colors">
+              <div class="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-sm font-bold">
+                {{ authStore.user?.name?.charAt(0)?.toUpperCase() || 'A' }}
+              </div>
+              <span class="text-sm font-medium text-slate-700">{{ authStore.user?.name || 'User' }}</span>
+              <ChevronDown :class="['h-4 w-4 text-slate-400 transition-transform', showUserDropdown ? 'rotate-180' : '']" />
+            </button>
+
+            <!-- User Dropdown -->
+            <div v-if="showUserDropdown" class="absolute right-0 top-12 w-56 rounded-xl bg-white border border-slate-200 shadow-xl z-50 overflow-hidden">
+              <div class="px-4 py-3 border-b border-slate-100">
+                <p class="text-sm font-bold text-slate-800 truncate">{{ authStore.user?.name }}</p>
+                <p class="text-xs text-slate-500 truncate">{{ authStore.user?.email }}</p>
+                <p class="text-[10px] text-emerald-600 font-medium mt-0.5">{{ authStore.user?.roles?.[0]?.name || 'User' }}</p>
+              </div>
+              <div class="py-1">
+                <button @click="openProfile" class="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors">
+                  <User class="h-4 w-4 text-slate-400" /> Edit Profil
+                </button>
+                <button @click="openChangePassword" class="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors">
+                  <Lock class="h-4 w-4 text-slate-400" /> Ganti Password
+                </button>
+              </div>
+              <div class="border-t border-slate-100 py-1">
+                <button @click="handleLogout" class="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 transition-colors">
+                  <LogOut class="h-4 w-4" /> Keluar
+                </button>
+              </div>
             </div>
-            <span class="text-sm font-medium text-slate-700">{{ authStore.user?.name || 'User' }}</span>
-            <ChevronDown class="h-4 w-4 text-slate-400" />
           </div>
         </div>
       </header>
@@ -341,6 +501,64 @@ async function handleLogout() {
       <main class="flex-1 overflow-y-auto p-4 lg:p-6">
         <slot />
       </main>
+    </div>
+
+    <!-- Profile Modal -->
+    <div v-if="showProfileModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50" @click.self="showProfileModal = false">
+      <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl mx-4">
+        <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <User class="h-5 w-5 text-emerald-600" /> Edit Profil
+        </h2>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Nama</label>
+            <input v-model="profileForm.name" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Email</label>
+            <input v-model="profileForm.email" type="email" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">No. HP</label>
+            <input v-model="profileForm.phone" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" placeholder="08xxxxxxxxxx" />
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button @click="showProfileModal = false" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Batal</button>
+          <button @click="saveProfile" :disabled="profileSaving" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+            <Check class="h-4 w-4" /> Simpan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div v-if="showPasswordModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50" @click.self="showPasswordModal = false">
+      <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl mx-4">
+        <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <Lock class="h-5 w-5 text-emerald-600" /> Ganti Password
+        </h2>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Password Saat Ini</label>
+            <input v-model="passwordForm.currentPassword" type="password" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Password Baru</label>
+            <input v-model="passwordForm.newPassword" type="password" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Konfirmasi Password Baru</label>
+            <input v-model="passwordForm.confirmPassword" type="password" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button @click="showPasswordModal = false" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Batal</button>
+          <button @click="savePassword" :disabled="passwordSaving" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+            <Check class="h-4 w-4" /> Ubah Password
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
