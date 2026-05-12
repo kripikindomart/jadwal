@@ -22,6 +22,8 @@ import { DisplayModule } from './modules/display/display.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { ExportModule } from './modules/export/export.module';
+import { CalendarModule } from './modules/calendar/calendar.module';
+import { AiModule } from './modules/ai/ai.module';
 @Module({
   imports: [
     // Global config
@@ -68,6 +70,8 @@ import { ExportModule } from './modules/export/export.module';
     NotificationsModule,
     AuditModule,
     ExportModule,
+    CalendarModule,
+    AiModule,
   ],
 })
 export class AppModule {}
