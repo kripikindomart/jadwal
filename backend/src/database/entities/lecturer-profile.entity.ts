@@ -34,6 +34,9 @@ export class LecturerProfile {
   @Column({ nullable: true })
   backTitle: string;
 
+  @Column({ nullable: true, unique: true })
+  portalToken: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -258,9 +258,9 @@ const handleSubmit = async () => {
   try {
     const payload: any = {
       courseId: parseInt(form.value.courseId),
-      onlinePercentage: parseInt(form.value.onlinePercentage as string) || 0,
+      onlinePercentage: parseInt(String(form.value.onlinePercentage)) || 0,
       roomIds: form.value.roomIds,
-      totalMeetings: parseInt(form.value.totalMeetings as string) || 16,
+      totalMeetings: parseInt(String(form.value.totalMeetings)) || 16,
       startDate: form.value.startDate || null,
       timeslotId: form.value.timeslotId ? Number(form.value.timeslotId) : null,
       dayOfWeek: form.value.dayOfWeek !== '' ? Number(form.value.dayOfWeek) : null,
@@ -361,12 +361,12 @@ const handleAssignSubmit = async () => {
 const onMeetingEndChange = (idx: number) => {
   const details = assignForm.value.lecturerDetails;
   const current = details[idx];
-  if (current.meetingEnd && idx + 1 < details.length) {
+  if (current && current.meetingEnd && idx + 1 < details.length) {
     const next = details[idx + 1];
-    if (!next.meetingStart || next.meetingStart <= current.meetingEnd) {
+    if (next && (!next.meetingStart || next.meetingStart <= current.meetingEnd)) {
       next.meetingStart = current.meetingEnd + 1;
     }
-    if (!next.meetingEnd) {
+    if (next && !next.meetingEnd) {
       next.meetingEnd = selectedClassCourse.value?.totalMeetings || 16;
     }
   }

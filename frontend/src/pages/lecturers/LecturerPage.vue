@@ -8,7 +8,7 @@ import ModalForm from '@/components/ui/ModalForm.vue'
 import StatsCard from '@/components/ui/StatsCard.vue'
 import ImportModal from '@/components/ui/ImportModal.vue'
 import SearchableSelect from '@/components/ui/SearchableSelect.vue'
-import { Plus, Edit2, Trash2, RotateCcw, AlertTriangle, GraduationCap, LayoutList, UploadCloud, UserCheck, Search } from 'lucide-vue-next'
+import { Plus, Edit2, Trash2, RotateCcw, AlertTriangle, GraduationCap, LayoutList, UploadCloud, UserCheck, Search, Link2, Copy, Send, RefreshCw } from 'lucide-vue-next'
 
 const toast = useToast()
 const confirm = useConfirm()
@@ -46,6 +46,7 @@ const columns: Column[] = [
   { key: 'name', label: 'Nama Lengkap', sortable: true },
   { key: 'contact', label: 'Kontak' },
   { key: 'prodi', label: 'Homebase Prodi' },
+  { key: 'portal', label: 'Portal Dosen' },
 ]
 
 // Modal Form State
@@ -266,6 +267,56 @@ function handleImportSuccess() {
   fetchData(1)
   fetchStats()
 }
+
+// ============ Portal Token ============
+const generatingToken = ref<number | null>(null)
+
+async function generateToken(item: any) {
+  generatingToken.value = item.id
+  try {
+    const { data } = await api.post(`/lecturers/${item.id}/generate-portal-token`)
+    item.portalToken = data.portalToken
+    toast.success('Berhasil', 'Link portal berhasil di-generate')
+  } catch (err: any) {
+    toast.error('Gagal', err.response?.data?.message || err.message)
+  } finally {
+    generatingToken.value = null
+  }
+}
+
+async function bulkGenerateTokens() {
+  try {
+    const { data } = await api.post('/lecturers/bulk-generate-portal-tokens')
+    toast.success('Berhasil', data.message)
+    fetchData()
+  } catch (err: any) {
+    toast.error('Gagal', err.response?.data?.message || err.message)
+  }
+}
+
+function getPortalUrl(token: string) {
+  return `${window.location.origin}/dosen/${token}`
+}
+
+function copyPortalLink(token: string) {
+  navigator.clipboard.writeText(getPortalUrl(token))
+  toast.success('Disalin', 'Link portal berhasil disalin ke clipboard')
+}
+
+function shareViaWhatsApp(item: any) {
+  const url = getPortalUrl(item.portalToken)
+  const message = `Assalamu'alaikum ${item.fullName},\n\nBerikut link Portal Dosen Anda:\n${url}\n\nSilakan bookmark link ini untuk mengakses jadwal, jurnal, absensi, dan penilaian.\n\nTerima kasih.`
+  const waUrl = `https://wa.me/${formatPhone(item.phone)}?text=${encodeURIComponent(message)}`
+  window.open(waUrl, '_blank')
+}
+
+function formatPhone(phone: string | null) {
+  if (!phone) return ''
+  let p = phone.replace(/\D/g, '')
+  if (p.startsWith('0')) p = '62' + p.slice(1)
+  if (!p.startsWith('62')) p = '62' + p
+  return p
+}
 </script>
 
 <template>
@@ -280,6 +331,10 @@ function handleImportSuccess() {
         <p class="text-sm text-slate-500 mt-1">Kelola data dosen, NIDN, dan homebase program studi.</p>
       </div>
       <div class="flex gap-2">
+        <button @click="bulkGenerateTokens"
+          class="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">
+          <Link2 class="w-4 h-4" /> Generate Semua Link
+        </button>
         <button @click="showImportModal = true"
           class="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors">
           <UploadCloud class="w-4 h-4" /> Import
@@ -368,6 +423,28 @@ function handleImportSuccess() {
           {{ item.homeProdi.degree }} {{ item.homeProdi.name }}
         </span>
         <span v-else class="text-slate-400 text-xs">—</span>
+      </template>
+
+      <template #cell(portal)="{ item }">
+        <div class="flex items-center gap-1">
+          <template v-if="item.portalToken">
+            <button @click="copyPortalLink(item.portalToken)" class="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Salin Link">
+              <Copy class="w-3.5 h-3.5" />
+            </button>
+            <button v-if="item.phone" @click="shareViaWhatsApp(item)" class="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Kirim via WhatsApp">
+              <Send class="w-3.5 h-3.5" />
+            </button>
+            <button @click="generateToken(item)" class="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Generate Ulang">
+              <RefreshCw class="w-3.5 h-3.5" />
+            </button>
+          </template>
+          <template v-else>
+            <button @click="generateToken(item)" :disabled="generatingToken === item.id"
+              class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded-md hover:bg-emerald-100 transition-colors disabled:opacity-50">
+              <Link2 class="w-3 h-3" /> Generate
+            </button>
+          </template>
+        </div>
       </template>
 
       <template #actions="{ item }">

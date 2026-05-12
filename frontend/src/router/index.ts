@@ -211,6 +211,22 @@ const router = createRouter({
       meta: { public: true, layout: "blank" },
     },
 
+    // Settings
+    {
+      path: "/settings",
+      name: "settings",
+      component: () => import("@/pages/settings/SettingsPage.vue"),
+      meta: { layout: "admin" },
+    },
+
+    // Attendance
+    {
+      path: "/attendance",
+      name: "attendance",
+      component: () => import("@/pages/attendance/AttendancePage.vue"),
+      meta: { layout: "admin" },
+    },
+
     // Letters / Surat Menyurat
     {
       path: "/letters",
@@ -259,6 +275,26 @@ const router = createRouter({
       name: "letters.print",
       component: () => import("@/pages/letters/LetterPrintPage.vue"),
       meta: { layout: "blank" },
+    },
+
+    // Public Letters (Mahasiswa)
+    {
+      path: "/dosen/:token",
+      name: "lecturer.portal.home",
+      component: () => import("@/pages/lecturer-portal/LecturerPortalHome.vue"),
+      meta: { public: true, layout: "blank" },
+    },
+    {
+      path: "/dosen/:token/kelas/:classCourseId",
+      name: "lecturer.portal.class",
+      component: () => import("@/pages/lecturer-portal/LecturerPortalClass.vue"),
+      meta: { public: true, layout: "blank" },
+    },
+    {
+      path: "/tugas/:publicToken",
+      name: "assignment.public.upload",
+      component: () => import("@/pages/lecturer-portal/PublicAssignmentUpload.vue"),
+      meta: { public: true, layout: "blank" },
     },
 
     // Public Letters (Mahasiswa)

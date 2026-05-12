@@ -18,6 +18,10 @@ import {
   ClassStudent,
   LecturerAttendanceLog,
   AppSetting,
+  Assignment,
+  Submission,
+  StudentAttendance,
+  StudentGrade,
 } from './entities';
 
 const entities = [
@@ -38,6 +42,10 @@ const entities = [
   ClassStudent,
   LecturerAttendanceLog,
   AppSetting,
+  Assignment,
+  Submission,
+  StudentAttendance,
+  StudentGrade,
 ];
 
 @Global()

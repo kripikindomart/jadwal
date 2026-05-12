@@ -117,4 +117,30 @@ export class LecturersController {
   importLecturers(@Body() body: { rows: any[] }) {
     return this.service.importLecturers(body.rows);
   }
+
+  // ============ Portal Token Management ============
+
+  @Get('portal-tokens/list')
+  @RequirePermissions('lecturers.view')
+  getPortalTokens() {
+    return this.service.getPortalTokens();
+  }
+
+  @Post(':id/generate-portal-token')
+  @RequirePermissions('lecturers.update')
+  generatePortalToken(@Param('id') id: string) {
+    return this.service.generatePortalToken(+id);
+  }
+
+  @Post('bulk-generate-portal-tokens')
+  @RequirePermissions('lecturers.update')
+  bulkGeneratePortalTokens() {
+    return this.service.bulkGeneratePortalTokens();
+  }
+
+  @Delete(':id/revoke-portal-token')
+  @RequirePermissions('lecturers.update')
+  revokePortalToken(@Param('id') id: string) {
+    return this.service.revokePortalToken(+id);
+  }
 }

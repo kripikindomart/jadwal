@@ -13,6 +13,10 @@ import { SurveysModule } from './modules/surveys/surveys.module';
 import { LettersModule } from './modules/letters/letters.module';
 import { CurriculumsModule } from './modules/curriculums/curriculums.module';
 import { ConcentrationsModule } from './modules/concentrations/concentrations.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { SettingsModule } from './modules/settings/settings.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
+import { LecturerPortalModule } from './modules/lecturer-portal/lecturer-portal.module';
 @Module({
   imports: [
     // Global config
@@ -45,6 +49,10 @@ import { ConcentrationsModule } from './modules/concentrations/concentrations.mo
     LettersModule,
     CurriculumsModule,
     ConcentrationsModule,
+    DashboardModule,
+    SettingsModule,
+    AttendanceModule,
+    LecturerPortalModule,
   ],
 })
 export class AppModule {}

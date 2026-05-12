@@ -343,8 +343,73 @@ export class LecturersService {
         `${profile?.frontTitle || ''} ${user.name}${profile?.backTitle ? ', ' + profile.backTitle : ''}`.trim(),
       homeProdiId: profile?.homeProdiId || null,
       homeProdi: profile?.homeProdi || null,
+      portalToken: profile?.portalToken || null,
       createdAt: user.createdAt,
       deletedAt: user.deletedAt,
     };
+  }
+
+  // ============ Portal Token Management ============
+
+  async getPortalTokens() {
+    const profiles = await this.profileRepo.find({
+      relations: ['user'],
+      order: { userId: 'ASC' },
+    });
+
+    return profiles.map((p) => ({
+      lecturerId: p.userId,
+      name: p.user?.name || '-',
+      email: p.user?.email || '-',
+      nidn: p.nidn,
+      portalToken: p.portalToken || null,
+      hasToken: !!p.portalToken,
+    }));
+  }
+
+  async generatePortalToken(lecturerId: number) {
+    const profile = await this.profileRepo.findOne({ where: { userId: lecturerId } });
+    if (!profile) throw new Error('Profil dosen tidak ditemukan');
+
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let token = '';
+    for (let i = 0; i < 12; i++) {
+      token += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    profile.portalToken = token;
+    await this.profileRepo.save(profile);
+
+    return { message: 'Token berhasil di-generate', portalToken: token };
+  }
+
+  async bulkGeneratePortalTokens() {
+    const profiles = await this.profileRepo.find();
+    let generated = 0;
+
+    for (const profile of profiles) {
+      if (!profile.portalToken) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let token = '';
+        for (let i = 0; i < 12; i++) {
+          token += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        profile.portalToken = token;
+        await this.profileRepo.save(profile);
+        generated++;
+      }
+    }
+
+    return { message: `${generated} token berhasil di-generate` };
+  }
+
+  async revokePortalToken(lecturerId: number) {
+    const profile = await this.profileRepo.findOne({ where: { userId: lecturerId } });
+    if (!profile) throw new Error('Profil dosen tidak ditemukan');
+
+    profile.portalToken = '';
+    await this.profileRepo.save(profile);
+
+    return { message: 'Token berhasil dicabut' };
   }
 }

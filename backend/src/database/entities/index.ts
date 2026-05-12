@@ -28,3 +28,7 @@ export { LetterRequest } from './letter-request.entity';
 export { Curriculum } from './curriculum.entity';
 export { CurriculumCourse } from './curriculum-course.entity';
 export { Concentration } from './concentration.entity';
+export { Assignment } from './assignment.entity';
+export { Submission } from './submission.entity';
+export { StudentAttendance } from './student-attendance.entity';
+export { StudentGrade } from './student-grade.entity';

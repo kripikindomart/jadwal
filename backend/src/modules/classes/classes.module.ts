@@ -3,7 +3,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ClassesService } from './classes.service';
 import { ClassesController } from './classes.controller';
 import { SchedulesController } from './schedules.controller';
+import { MeetingsController } from './meetings.controller';
 import { ScheduleGeneratorService } from './schedule-generator.service';
+import { MeetingsService } from './meetings.service';
 import {
   Class,
   ClassLecturer,
@@ -30,8 +32,8 @@ import {
       ClassCourseStudent,
     ]),
   ],
-  controllers: [ClassesController, SchedulesController],
-  providers: [ClassesService, ScheduleGeneratorService],
-  exports: [ClassesService],
+  controllers: [ClassesController, SchedulesController, MeetingsController],
+  providers: [ClassesService, ScheduleGeneratorService, MeetingsService],
+  exports: [ClassesService, MeetingsService],
 })
 export class ClassesModule {}

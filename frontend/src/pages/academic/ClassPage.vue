@@ -181,7 +181,7 @@ const openModal = (type: 'create' | 'edit', item?: ClassEntity) => {
     const activeSemester = semesters.value.find((s: any) => s.isActive);
     form.value = { 
       semesterId: activeSemester ? activeSemester.id : '', 
-      prodiId: authStore.hasAnyRole(['admin', 'superadmin']) ? '' : (authStore.allowedProdiIds.length > 0 ? authStore.allowedProdiIds[0] : ''),
+      prodiId: authStore.hasAnyRole(['admin', 'superadmin']) ? '' : (authStore.allowedProdiIds.length > 0 ? authStore.allowedProdiIds[0] as number : ''),
       name: '', 
       quota: 40 
     };
