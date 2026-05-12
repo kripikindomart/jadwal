@@ -21,11 +21,16 @@ const currentTime = ref(new Date())
 const loading = ref(true)
 
 // Dummy bimbingan data (bisa diganti API nanti)
-const bimbingan = ref([
-  { time: '08:00', title: 'Bimbingan Tesis - Kelompok A', info: 'Dr. Rina Wijaya, Ruang Diskusi 1' },
-  { time: '10:30', title: 'Bimbingan Disertasi - Andi Saputra', info: 'Prof. Hasanuddin, Ruang Konsultasi' },
-  { time: '13:15', title: 'Bimbingan Tesis - Budi & Ani', info: 'Dr. Eko Prasetyo, Ruang Diskusi 2' },
-])
+const bimbingan = ref<{ time: string; title: string; info: string }[]>([])
+
+// Promo flyers for fullscreen left panel (when no schedule)
+const flyers = [
+  { src: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1200&q=85', title: 'PENDAFTARAN MAHASISWA BARU 2026/2027', subtitle: 'Program Magister & Doktor', desc: 'Bergabunglah dengan program pascasarjana unggulan. Kuota terbatas, daftar sekarang!' },
+  { src: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1200&q=85', title: 'WISUDA PASCASARJANA 2026', subtitle: 'Selamat kepada 245 Wisudawan', desc: 'Apresiasi untuk pencapaian para lulusan program S2 dan S3 periode September 2026.' },
+  { src: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=1200&q=85', title: 'SEMINAR NASIONAL INOVASI PENDIDIKAN', subtitle: '15 Juni 2026 · Aula Utama', desc: 'Pembicara dari berbagai universitas ternama. Gratis untuk mahasiswa aktif!' },
+  { src: 'https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?w=1200&q=85', title: 'BEASISWA PRESTASI PASCASARJANA', subtitle: 'Dibuka sampai 30 Juni 2026', desc: 'Beasiswa untuk mahasiswa berprestasi dengan cakupan biaya kuliah dan tunjangan hidup.' },
+]
+const currentFlyer = ref(0)
 
 // Slideshow highlight
 const currentSlide = ref(0)
@@ -44,6 +49,7 @@ const scheduleScrollRef = ref<HTMLElement | null>(null)
 let clockInterval: any = null
 let refreshInterval: any = null
 let slideInterval: any = null
+let flyerInterval: any = null
 let scrollInterval: any = null
 
 onMounted(async () => {
@@ -53,6 +59,9 @@ onMounted(async () => {
   slideInterval = setInterval(() => {
     currentSlide.value = (currentSlide.value + 1) % slides.length
   }, 7000)
+  flyerInterval = setInterval(() => {
+    currentFlyer.value = (currentFlyer.value + 1) % flyers.length
+  }, 6000)
   startAutoScroll()
 })
 
@@ -60,6 +69,7 @@ onUnmounted(() => {
   if (clockInterval) clearInterval(clockInterval)
   if (refreshInterval) clearInterval(refreshInterval)
   if (slideInterval) clearInterval(slideInterval)
+  if (flyerInterval) clearInterval(flyerInterval)
   if (scrollInterval) clearInterval(scrollInterval)
 })
 
@@ -149,6 +159,11 @@ const nextPrayer = computed(() => {
   const m = now.getMinutes().toString().padStart(2, '0')
   const current = `${h}:${m}`
   return prayerTimes.value.find(p => p.time > current) || prayerTimes.value[0]
+})
+
+// Show flyer mode when no schedule AND no bimbingan
+const showFlyerMode = computed(() => {
+  return !loading.value && schedules.value.length === 0 && bimbingan.value.length === 0
 })
 </script>
 

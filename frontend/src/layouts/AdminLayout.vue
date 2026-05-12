@@ -180,6 +180,7 @@ const menuItems = computed(() => {
   if (authStore.hasPermission('classes.view')) scheduleChildren.push({ label: 'Kelas', to: '/classes', icon: Users })
   if (authStore.hasPermission('schedules.view')) scheduleChildren.push({ label: 'Jadwal Perkuliahan', to: '/schedules', icon: Calendar })
   if (authStore.hasPermission('attendance.view')) scheduleChildren.push({ label: 'Monitoring Kehadiran', to: '/attendance', icon: Clock })
+  if (authStore.hasPermission('guidance.manage')) scheduleChildren.push({ label: 'Jadwal Bimbingan', to: '/guidance', icon: Users })
 
   if (scheduleChildren.length > 0) {
     items.push({

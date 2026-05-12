@@ -285,6 +285,22 @@ const router = createRouter({
       meta: { public: true, layout: "blank" },
     },
 
+    // Student Portal (Bimbingan)
+    {
+      path: "/mahasiswa/:nim",
+      name: "student.portal",
+      component: () => import("@/pages/student-portal/StudentPortalPage.vue"),
+      meta: { public: true, layout: "blank" },
+    },
+
+    // Guidance / Bimbingan (Admin)
+    {
+      path: "/guidance",
+      name: "guidance",
+      component: () => import("@/pages/guidance/GuidancePage.vue"),
+      meta: { layout: "admin" },
+    },
+
     {
       path: "/dosen/:token",
       name: "lecturer.portal.home",

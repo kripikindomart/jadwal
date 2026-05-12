@@ -24,6 +24,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { ExportModule } from './modules/export/export.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 import { AiModule } from './modules/ai/ai.module';
+import { GuidanceModule } from './modules/guidance/guidance.module';
 @Module({
   imports: [
     // Global config
@@ -72,6 +73,7 @@ import { AiModule } from './modules/ai/ai.module';
     ExportModule,
     CalendarModule,
     AiModule,
+    GuidanceModule,
   ],
 })
 export class AppModule {}
