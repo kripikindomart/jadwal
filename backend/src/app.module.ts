@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { databaseConfig, jwtConfig } from './config';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -18,6 +19,8 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { AttendanceModule } from './modules/attendance/attendance.module';
 import { LecturerPortalModule } from './modules/lecturer-portal/lecturer-portal.module';
 import { DisplayModule } from './modules/display/display.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AuditModule } from './modules/audit/audit.module';
 @Module({
   imports: [
     // Global config
@@ -26,6 +29,12 @@ import { DisplayModule } from './modules/display/display.module';
       load: [databaseConfig, jwtConfig],
       envFilePath: '.env',
     }),
+
+    // Rate limiting
+    ThrottlerModule.forRoot([
+      { name: 'short', ttl: 1000, limit: 10 },   // 10 req/sec
+      { name: 'medium', ttl: 60000, limit: 100 }, // 100 req/min
+    ]),
 
     // Database
     TypeOrmModule.forRootAsync({
@@ -55,6 +64,8 @@ import { DisplayModule } from './modules/display/display.module';
     AttendanceModule,
     LecturerPortalModule,
     DisplayModule,
+    NotificationsModule,
+    AuditModule,
   ],
 })
 export class AppModule {}
