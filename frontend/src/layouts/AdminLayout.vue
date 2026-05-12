@@ -179,6 +179,7 @@ const menuItems = computed(() => {
   const scheduleChildren = []
   if (authStore.hasPermission('classes.view')) scheduleChildren.push({ label: 'Kelas', to: '/classes', icon: Users })
   if (authStore.hasPermission('schedules.view')) scheduleChildren.push({ label: 'Jadwal Perkuliahan', to: '/schedules', icon: Calendar })
+  if (authStore.hasPermission('attendance.view')) scheduleChildren.push({ label: 'Monitoring Kehadiran', to: '/attendance', icon: Clock })
 
   if (scheduleChildren.length > 0) {
     items.push({
@@ -235,6 +236,9 @@ const menuItems = computed(() => {
   if (authStore.hasPermission('settings.manage') || authStore.hasRole('superadmin')) {
     items.push({ label: 'Pengaturan', icon: Settings, to: '/settings' })
   }
+
+  // Display TV (link ke halaman publik, buka di tab baru)
+  items.push({ label: 'Display TV', icon: LayoutDashboard, to: '/display/tv' })
 
   return items
 })
@@ -309,8 +313,21 @@ async function handleLogout() {
       <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
         <template v-for="item in menuItems" :key="item.label">
           <!-- Simple link (no children) -->
+          <a
+            v-if="!item.children && item.to === '/display/tv'"
+            :href="item.to"
+            target="_blank"
+            :class="[
+              'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
+              'text-slate-600 hover:bg-slate-50 hover:text-emerald-600',
+            ]"
+          >
+            <component :is="item.icon" class="h-5 w-5 shrink-0 text-slate-400" />
+            <span v-if="sidebarOpen" class="truncate">{{ item.label }}</span>
+            <span v-if="sidebarOpen" class="ml-auto text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">↗</span>
+          </a>
           <router-link
-            v-if="!item.children"
+            v-else-if="!item.children"
             :to="item.to!"
             :class="[
               'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
