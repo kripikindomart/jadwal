@@ -167,6 +167,13 @@ export class LecturerPortalService {
 
   async getMeetings(token: string, classCourseId: number) {
     await this.verifyAccess(token, classCourseId);
+
+    // Auto-generate meetings from existing schedules if none exist
+    const existing = await this.meetingRepo.count({ where: { classCourseId } });
+    if (existing === 0) {
+      await this.autoGenerateFromSchedules(classCourseId);
+    }
+
     return this.meetingRepo.find({
       where: { classCourseId },
       order: { meetingNumber: 'ASC' },
@@ -181,31 +188,88 @@ export class LecturerPortalService {
       throw new BadRequestException('Pertemuan sudah di-generate sebelumnya');
     }
 
+    await this.autoGenerateFromSchedules(classCourseId);
+    const meetings = await this.meetingRepo.find({ where: { classCourseId }, order: { meetingNumber: 'ASC' } });
+    return { message: `${meetings.length} pertemuan berhasil di-generate dari jadwal`, data: meetings };
+  }
+
+  private async autoGenerateFromSchedules(classCourseId: number) {
     const cc = await this.classCourseRepo.findOne({ where: { id: classCourseId } });
     const total = cc?.totalMeetings || 16;
-    const startDate = cc?.startDate ? new Date(cc.startDate) : new Date();
+
+    // Get all schedules for this class course (sorted by date)
+    const schedules = await this.scheduleRepo.find({
+      where: { classCourseId },
+      order: { date: 'ASC', dayOfWeek: 'ASC' },
+    });
 
     const meetings: Partial<ClassMeeting>[] = [];
-    for (let i = 1; i <= total; i++) {
-      const date = new Date(startDate);
-      date.setDate(date.getDate() + (i - 1) * 7);
 
-      let type = 'KULIAH';
-      if (i === Math.ceil(total / 2)) type = 'UTS';
-      if (i === total) type = 'UAS';
+    if (schedules.length > 0) {
+      // Generate meetings based on actual schedule dates
+      for (let i = 0; i < Math.min(schedules.length, total); i++) {
+        const sched = schedules[i];
+        let type = 'KULIAH';
+        if (i + 1 === Math.ceil(total / 2)) type = 'UTS';
+        if (i + 1 === total) type = 'UAS';
 
-      meetings.push({
-        classCourseId,
-        meetingNumber: i,
-        date,
-        type,
-        mode: 'OFFLINE',
-        isLocked: false,
-      });
+        meetings.push({
+          classCourseId,
+          meetingNumber: i + 1,
+          date: sched.date ? new Date(sched.date) : undefined,
+          type,
+          mode: 'OFFLINE',
+          isLocked: false,
+          scheduleIdRef: sched.id,
+        });
+      }
+
+      // If schedules < total meetings, generate remaining with weekly interval from last schedule
+      if (schedules.length < total) {
+        const lastSched = schedules[schedules.length - 1];
+        const lastDate = lastSched.date ? new Date(lastSched.date) : new Date();
+
+        for (let i = schedules.length; i < total; i++) {
+          const date = new Date(lastDate);
+          date.setDate(date.getDate() + (i - schedules.length + 1) * 7);
+
+          let type = 'KULIAH';
+          if (i + 1 === Math.ceil(total / 2)) type = 'UTS';
+          if (i + 1 === total) type = 'UAS';
+
+          meetings.push({
+            classCourseId,
+            meetingNumber: i + 1,
+            date,
+            type,
+            mode: 'OFFLINE',
+            isLocked: false,
+          });
+        }
+      }
+    } else {
+      // No schedules exist, generate with weekly interval from start date
+      const startDate = cc?.startDate ? new Date(cc.startDate) : new Date();
+      for (let i = 0; i < total; i++) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + i * 7);
+
+        let type = 'KULIAH';
+        if (i + 1 === Math.ceil(total / 2)) type = 'UTS';
+        if (i + 1 === total) type = 'UAS';
+
+        meetings.push({
+          classCourseId,
+          meetingNumber: i + 1,
+          date,
+          type,
+          mode: 'OFFLINE',
+          isLocked: false,
+        });
+      }
     }
 
-    const saved = await this.meetingRepo.save(this.meetingRepo.create(meetings));
-    return { message: `${total} pertemuan berhasil di-generate`, data: saved };
+    await this.meetingRepo.save(this.meetingRepo.create(meetings));
   }
 
   async updateMeeting(

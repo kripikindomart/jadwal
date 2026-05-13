@@ -19,6 +19,12 @@ export class MeetingsService {
   ) {}
 
   async findByClassCourse(classCourseId: number) {
+    // Auto-generate from schedules if no meetings exist
+    const count = await this.meetingRepository.count({ where: { classCourseId } });
+    if (count === 0) {
+      await this.generate(classCourseId);
+    }
+
     const meetings = await this.meetingRepository.find({
       where: { classCourseId },
       order: { meetingNumber: 'ASC' },
@@ -48,48 +54,88 @@ export class MeetingsService {
       where: { classCourseId },
     });
     if (existing > 0) {
-      throw new BadRequestException(
-        `Sudah ada ${existing} pertemuan untuk class course ini. Hapus dulu jika ingin generate ulang.`,
-      );
+      return {
+        message: `Sudah ada ${existing} pertemuan untuk class course ini.`,
+        data: await this.meetingRepository.find({ where: { classCourseId }, order: { meetingNumber: 'ASC' } }),
+      };
     }
 
     const total = totalMeetings || classCourse.totalMeetings || 16;
 
-    // Try to get schedule for date calculation
-    const schedule = await this.classScheduleRepository.findOne({
+    // Get existing schedules for this class course
+    const schedules = await this.classScheduleRepository.find({
       where: { classCourseId },
-      order: { date: 'ASC' },
+      order: { date: 'ASC', dayOfWeek: 'ASC' },
     });
 
     const meetings: Partial<ClassMeeting>[] = [];
-    const startDate = classCourse.startDate
-      ? new Date(classCourse.startDate)
-      : schedule?.date
-        ? new Date(schedule.date)
+
+    if (schedules.length > 0) {
+      // Generate from actual schedule dates
+      for (let i = 0; i < Math.min(schedules.length, total); i++) {
+        const sched = schedules[i];
+        let type = 'KULIAH';
+        if (i + 1 === Math.ceil(total / 2)) type = 'UTS';
+        if (i + 1 === total) type = 'UAS';
+
+        meetings.push({
+          classCourseId,
+          meetingNumber: i + 1,
+          date: sched.date ? new Date(sched.date) : undefined,
+          type,
+          mode: 'OFFLINE',
+          isLocked: false,
+          scheduleIdRef: sched.id,
+        });
+      }
+
+      // Fill remaining if schedules < total
+      if (schedules.length < total) {
+        const lastDate = schedules[schedules.length - 1].date
+          ? new Date(schedules[schedules.length - 1].date)
+          : new Date();
+
+        for (let i = schedules.length; i < total; i++) {
+          const date = new Date(lastDate);
+          date.setDate(date.getDate() + (i - schedules.length + 1) * 7);
+
+          let type = 'KULIAH';
+          if (i + 1 === Math.ceil(total / 2)) type = 'UTS';
+          if (i + 1 === total) type = 'UAS';
+
+          meetings.push({
+            classCourseId,
+            meetingNumber: i + 1,
+            date,
+            type,
+            mode: 'OFFLINE',
+            isLocked: false,
+          });
+        }
+      }
+    } else {
+      // No schedules, use start date with weekly interval
+      const startDate = classCourse.startDate
+        ? new Date(classCourse.startDate)
         : new Date();
 
-    for (let i = 1; i <= total; i++) {
-      // Calculate date: start + (i-1) weeks
-      const meetingDate = new Date(startDate);
-      meetingDate.setDate(meetingDate.getDate() + (i - 1) * 7);
+      for (let i = 0; i < total; i++) {
+        const meetingDate = new Date(startDate);
+        meetingDate.setDate(meetingDate.getDate() + i * 7);
 
-      // Determine type based on meeting number
-      let type = 'KULIAH';
-      if (i === Math.ceil(total / 2)) type = 'UTS';
-      if (i === total) type = 'UAS';
+        let type = 'KULIAH';
+        if (i + 1 === Math.ceil(total / 2)) type = 'UTS';
+        if (i + 1 === total) type = 'UAS';
 
-      meetings.push({
-        classCourseId,
-        meetingNumber: i,
-        date: meetingDate,
-        type,
-        mode: 'OFFLINE',
-        topic: undefined,
-        notes: undefined,
-        materialFile: undefined,
-        isLocked: false,
-        scheduleIdRef: schedule?.id ?? undefined,
-      });
+        meetings.push({
+          classCourseId,
+          meetingNumber: i + 1,
+          date: meetingDate,
+          type,
+          mode: 'OFFLINE',
+          isLocked: false,
+        });
+      }
     }
 
     const saved = await this.meetingRepository.save(
@@ -97,7 +143,7 @@ export class MeetingsService {
     );
 
     return {
-      message: `Berhasil generate ${total} pertemuan`,
+      message: `Berhasil generate ${saved.length} pertemuan dari jadwal`,
       data: saved,
     };
   }
