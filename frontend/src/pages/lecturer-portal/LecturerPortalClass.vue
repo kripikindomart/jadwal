@@ -162,17 +162,17 @@ const tabs = [
 
     <div v-else>
       <!-- Sticky Header -->
-      <header class="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-slate-100">
-        <div class="max-w-5xl mx-auto px-4 sm:px-6 py-3">
-          <div class="flex items-center gap-3">
-            <button @click="router.push(`/dosen/${token}`)" class="h-8 w-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+      <header class="sticky top-0 z-10 bg-white/70 backdrop-blur-xl border-b border-slate-100/80 shadow-sm">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 py-4">
+          <div class="flex items-center gap-4">
+            <button @click="router.push(`/dosen/${token}`)" class="h-10 w-10 rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 hover:from-slate-200 hover:to-slate-100 flex items-center justify-center transition-all shadow-sm border border-slate-200/50">
               <ArrowLeft class="h-4 w-4 text-slate-600" />
             </button>
             <div class="flex-1 min-w-0">
-              <h1 class="text-sm font-bold text-slate-800 truncate">{{ classDetail?.classCourse?.courseName }}</h1>
-              <p class="text-xs text-slate-400">{{ classDetail?.classCourse?.className }} · {{ classDetail?.classCourse?.courseCode }}</p>
+              <h1 class="text-base font-bold text-slate-900 truncate">{{ classDetail?.classCourse?.courseName }}</h1>
+              <p class="text-xs text-slate-500 mt-0.5">{{ classDetail?.classCourse?.className }} · {{ classDetail?.classCourse?.courseCode }}</p>
             </div>
-            <div class="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 bg-slate-50 px-2.5 py-1 rounded-full">
+            <div class="hidden sm:flex items-center gap-2 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/50 px-3 py-1.5 rounded-full shadow-sm">
               <GraduationCap class="h-3.5 w-3.5" />
               {{ classDetail?.classCourse?.sks }} SKS
             </div>
@@ -182,31 +182,31 @@ const tabs = [
 
       <main class="max-w-5xl mx-auto px-4 sm:px-6 py-6">
         <!-- Progress Banner -->
-        <div class="mb-6 rounded-xl bg-white border border-slate-100 shadow-sm p-4 flex items-center gap-4">
-          <div class="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
-            <BookOpen class="h-6 w-6 text-emerald-600" />
+        <div class="mb-6 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-200/50 shadow-sm p-5 flex items-center gap-4">
+          <div class="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0 shadow-lg shadow-emerald-200/50">
+            <BookOpen class="h-7 w-7 text-white" />
           </div>
           <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between mb-1">
-              <span class="text-xs font-medium text-slate-600">Progress Jurnal</span>
-              <span class="text-xs font-bold text-emerald-600">{{ filledCount }}/{{ meetings.length || classDetail?.classCourse?.totalMeetings || 16 }}</span>
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-sm font-semibold text-slate-700">Progress Jurnal Perkuliahan</span>
+              <span class="text-sm font-bold text-emerald-600">{{ filledCount }}/{{ meetings.length || classDetail?.classCourse?.totalMeetings || 16 }}</span>
             </div>
-            <div class="h-2 rounded-full bg-slate-100 overflow-hidden">
-              <div class="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-500"
+            <div class="h-2.5 rounded-full bg-emerald-100 overflow-hidden">
+              <div class="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-700 ease-out"
                 :style="{ width: `${meetings.length ? (filledCount / meetings.length) * 100 : 0}%` }"></div>
             </div>
           </div>
-          <div class="hidden sm:flex items-center gap-3 text-xs text-slate-500 shrink-0">
-            <span class="flex items-center gap-1"><Users class="h-3.5 w-3.5" /> {{ classDetail?.students?.length || 0 }} mhs</span>
+          <div class="hidden sm:flex items-center gap-4 text-xs text-slate-500 shrink-0 pl-4 border-l border-slate-200">
+            <span class="flex items-center gap-1.5"><Users class="h-4 w-4 text-slate-400" /> {{ classDetail?.students?.length || 0 }} mahasiswa</span>
           </div>
         </div>
 
         <!-- Tabs -->
-        <div class="mb-6 flex gap-1 p-1 bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
+        <div class="mb-6 flex gap-1.5 p-1.5 bg-white/80 backdrop-blur rounded-2xl border border-slate-200/50 shadow-sm overflow-x-auto">
           <button v-for="tab in tabs" :key="tab.key" @click="onTabChange(tab.key)"
-            :class="['flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap',
-              activeTab === tab.key ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50']">
-            <component :is="tab.icon" class="h-3.5 w-3.5" />
+            :class="['flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all whitespace-nowrap',
+              activeTab === tab.key ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50']">
+            <component :is="tab.icon" class="h-4 w-4" />
             {{ tab.label }}
           </button>
         </div>
