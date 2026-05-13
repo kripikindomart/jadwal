@@ -293,6 +293,20 @@ const router = createRouter({
       meta: { public: true, layout: "blank" },
     },
 
+    // Mahasiswa: Tugas Akhir & Bimbingan (authenticated)
+    {
+      path: "/my-thesis",
+      name: "my-thesis",
+      component: () => import("@/pages/thesis/MyThesisPage.vue"),
+      meta: { layout: "admin" },
+    },
+    {
+      path: "/my-guidance",
+      name: "my-guidance",
+      component: () => import("@/pages/student-portal/StudentPortalPage.vue"),
+      meta: { layout: "admin" },
+    },
+
     // Guidance / Bimbingan (Admin)
     {
       path: "/guidance",

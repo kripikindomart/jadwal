@@ -151,115 +151,130 @@ onUnmounted(() => {
 const menuItems = computed(() => {
   const items: MenuItem[] = [
     { label: 'Dashboard', icon: LayoutDashboard, to: '/' },
-    { label: 'Jadwal Saya', icon: Calendar, to: '/my-schedule' }
+    { label: 'Jadwal Saya', icon: Calendar, to: '/my-schedule' },
   ]
 
-  // Akademik
+  const isAdmin = authStore.hasAnyRole(['superadmin', 'admin'])
+  const isStaff = authStore.hasAnyRole(['superadmin', 'admin', 'staff'])
+  const isDosen = authStore.hasRole('dosen')
+  const isMahasiswa = authStore.hasRole('mahasiswa')
+
+  // ═══════════════════════════════════════════
+  // MAHASISWA MENU
+  // ═══════════════════════════════════════════
+  if (isMahasiswa) {
+    items.push({
+      label: 'Tugas Akhir',
+      icon: GraduationCap,
+      children: [
+        { label: 'Pengajuan & Status', to: '/my-thesis', icon: GraduationCap },
+        { label: 'Request Bimbingan', to: '/my-guidance', icon: Calendar },
+      ]
+    })
+    items.push({ label: 'Survei Saya', icon: ClipboardList, to: '/surveys/my-pending' })
+    items.push({ label: 'Pengajuan Surat', icon: Mail, to: '/layanan-surat' })
+    return items
+  }
+
+  // ═══════════════════════════════════════════
+  // DOSEN MENU
+  // ═══════════════════════════════════════════
+  if (isDosen && !isStaff) {
+    items.push({ label: 'Survei Saya', icon: ClipboardList, to: '/surveys/my-pending' })
+    return items
+  }
+
+  // ═══════════════════════════════════════════
+  // ADMIN / STAFF MENU
+  // ═══════════════════════════════════════════
+
+  // --- Master Data Akademik ---
   const akademikChildren = []
   if (authStore.hasPermission('semesters.view')) akademikChildren.push({ label: 'Periode Akademik', to: '/semesters', icon: Calendar })
   if (authStore.hasPermission('prodis.view')) akademikChildren.push({ label: 'Program Studi', to: '/prodis', icon: GraduationCap })
   if (authStore.hasPermission('concentrations.view')) akademikChildren.push({ label: 'Konsentrasi', to: '/admin/academic/concentrations', icon: GraduationCap })
-  if (authStore.hasPermission('curriculums.view')) akademikChildren.push({ label: 'Manajemen Kurikulum', to: '/admin/academic/curriculums', icon: LayoutDashboard })
+  if (authStore.hasPermission('curriculums.view')) akademikChildren.push({ label: 'Kurikulum', to: '/admin/academic/curriculums', icon: LayoutDashboard })
   if (authStore.hasPermission('courses.view')) akademikChildren.push({ label: 'Mata Kuliah', to: '/courses', icon: GraduationCap })
   if (authStore.hasPermission('rooms.view')) akademikChildren.push({ label: 'Ruang Kelas', to: '/rooms', icon: LayoutDashboard })
   if (authStore.hasPermission('timeslots.view')) akademikChildren.push({ label: 'Slot Waktu', to: '/timeslots', icon: Clock })
   if (authStore.hasPermission('grade_components.view')) akademikChildren.push({ label: 'Komponen Nilai', to: '/grade-components', icon: Percent })
-  if (authStore.hasPermission('lecturers.view')) akademikChildren.push({ label: 'Dosen', to: '/lecturers', icon: Users })
-  if (authStore.hasPermission('students.view')) akademikChildren.push({ label: 'Mahasiswa', to: '/students', icon: Users })
 
   if (akademikChildren.length > 0) {
-    items.push({
-      label: 'Akademik',
-      icon: GraduationCap,
-      children: akademikChildren
-    })
+    items.push({ label: 'Master Akademik', icon: GraduationCap, children: akademikChildren })
   }
 
-  // Penjadwalan
+  // --- Data Pengguna ---
+  const userChildren = []
+  if (authStore.hasPermission('lecturers.view')) userChildren.push({ label: 'Dosen', to: '/lecturers', icon: Users })
+  if (authStore.hasPermission('students.view')) userChildren.push({ label: 'Mahasiswa', to: '/students', icon: Users })
+
+  if (userChildren.length > 0) {
+    items.push({ label: 'Data Pengguna', icon: Users, children: userChildren })
+  }
+
+  // --- Penjadwalan & Kelas ---
   const scheduleChildren = []
-  if (authStore.hasPermission('classes.view')) scheduleChildren.push({ label: 'Kelas', to: '/classes', icon: Users })
+  if (authStore.hasPermission('classes.view')) scheduleChildren.push({ label: 'Rombongan Belajar', to: '/classes', icon: Users })
   if (authStore.hasPermission('schedules.view')) scheduleChildren.push({ label: 'Jadwal Perkuliahan', to: '/schedules', icon: Calendar })
   if (authStore.hasPermission('schedules.generate')) scheduleChildren.push({ label: 'Request Reschedule', to: '/reschedule', icon: Clock })
   if (authStore.hasPermission('attendance.view')) scheduleChildren.push({ label: 'Monitoring Kehadiran', to: '/attendance', icon: Clock })
-  if (authStore.hasPermission('guidance.manage')) scheduleChildren.push({ label: 'Jadwal Bimbingan', to: '/guidance', icon: Users })
 
   if (scheduleChildren.length > 0) {
-    items.push({
-      label: 'Manajemen Kelas',
-      icon: Calendar,
-      children: scheduleChildren
-    })
+    items.push({ label: 'Penjadwalan', icon: Calendar, children: scheduleChildren })
   }
 
-  // Tugas Akhir (Kaprodi/Sekprodi)
+  // --- Tugas Akhir & Bimbingan ---
   const thesisChildren: any[] = []
   if (authStore.hasPermission('thesis.view')) thesisChildren.push({ label: 'Data Tugas Akhir', to: '/thesis', icon: GraduationCap })
   if (authStore.hasPermission('thesis.view')) thesisChildren.push({ label: 'Monitoring Progress', to: '/thesis/monitoring', icon: LayoutDashboard })
   if (authStore.hasPermission('guidance.manage')) thesisChildren.push({ label: 'Jadwal Bimbingan', to: '/guidance', icon: Calendar })
 
   if (thesisChildren.length > 0) {
-    items.push({
-      label: 'Tugas Akhir',
-      icon: GraduationCap,
-      children: thesisChildren
-    })
+    items.push({ label: 'Tugas Akhir', icon: GraduationCap, children: thesisChildren })
   }
 
-  // EDOM / Survei
+  // --- EDOM / Survei ---
   const edomChildren: any[] = []
   if (authStore.hasPermission('surveys.manage')) edomChildren.push({ label: 'Kelola Instrumen', to: '/surveys', icon: ClipboardList })
-  if (authStore.hasAnyRole(['mahasiswa', 'dosen'])) edomChildren.push({ label: 'Survei Saya', to: '/surveys/my-pending', icon: ClipboardList })
+  edomChildren.push({ label: 'Survei Saya', to: '/surveys/my-pending', icon: ClipboardList })
 
   if (edomChildren.length > 0) {
-    items.push({
-      label: 'EDOM / Survei',
-      icon: ClipboardList,
-      children: edomChildren
-    })
+    items.push({ label: 'EDOM / Survei', icon: ClipboardList, children: edomChildren })
   }
 
-  // Layanan Surat (hanya admin/staff)
-  if (authStore.hasAnyRole(['superadmin', 'admin', 'staff'])) {
-    const letterChildren: any[] = []
-    letterChildren.push({ label: 'Klasifikasi Kode', to: '/letters/classifications', icon: Tags })
-    letterChildren.push({ label: 'Jenis Surat', to: '/letters', icon: Mail })
-    letterChildren.push({ label: 'Template Surat', to: '/letters/templates', icon: Mail })
-    letterChildren.push({ label: 'Inbox Pengajuan', to: '/letters/requests', icon: Mail })
-    letterChildren.push({ label: 'Manajemen PIN', to: '/letters/pins', icon: Key })
-
+  // --- Layanan Surat ---
+  if (isStaff) {
     items.push({
       label: 'Layanan Surat',
       icon: Mail,
-      children: letterChildren
+      children: [
+        { label: 'Klasifikasi Kode', to: '/letters/classifications', icon: Tags },
+        { label: 'Jenis Surat', to: '/letters', icon: Mail },
+        { label: 'Template Surat', to: '/letters/templates', icon: Mail },
+        { label: 'Inbox Pengajuan', to: '/letters/requests', icon: Mail },
+        { label: 'Manajemen PIN', to: '/letters/pins', icon: Key },
+      ]
     })
   }
 
-  // Users & ACL
-  const aclChildren = []
-  if (authStore.hasPermission('users.view')) aclChildren.push({ label: 'Users', to: '/users', icon: Users })
-  if (authStore.hasPermission('roles.view')) aclChildren.push({ label: 'Roles', to: '/users/roles', icon: Shield })
-  if (authStore.hasPermission('permissions.view')) aclChildren.push({ label: 'Permissions', to: '/users/permissions', icon: Key })
-
-  if (aclChildren.length > 0) {
-    items.push({
-      label: 'Users & ACL',
-      icon: Users,
-      children: aclChildren
-    })
+  // --- Users & ACL ---
+  if (isAdmin) {
+    const aclChildren = []
+    if (authStore.hasPermission('users.view')) aclChildren.push({ label: 'Users', to: '/users', icon: Users })
+    if (authStore.hasPermission('roles.view')) aclChildren.push({ label: 'Roles', to: '/users/roles', icon: Shield })
+    if (authStore.hasPermission('permissions.view')) aclChildren.push({ label: 'Permissions', to: '/users/permissions', icon: Key })
+    if (aclChildren.length > 0) {
+      items.push({ label: 'Users & ACL', icon: Shield, children: aclChildren })
+    }
   }
 
-  // Pengaturan
+  // --- Pengaturan ---
   if (authStore.hasPermission('settings.manage') || authStore.hasRole('superadmin')) {
     items.push({ label: 'Pengaturan', icon: Settings, to: '/settings' })
   }
 
-  // Mahasiswa: Pengajuan Surat (link ke portal publik)
-  if (authStore.hasRole('mahasiswa')) {
-    items.push({ label: 'Pengajuan Surat', icon: Mail, to: '/layanan-surat' })
-  }
-
-  // Display TV (hanya admin/staff)
-  if (authStore.hasAnyRole(['superadmin', 'admin', 'staff'])) {
+  // --- Display TV (buka tab baru) ---
+  if (isStaff) {
     items.push({ label: 'Display TV', icon: LayoutDashboard, to: '/display/tv' })
   }
 
