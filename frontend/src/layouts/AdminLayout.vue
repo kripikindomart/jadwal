@@ -190,6 +190,20 @@ const menuItems = computed(() => {
     })
   }
 
+  // Tugas Akhir (Kaprodi/Sekprodi)
+  const thesisChildren: any[] = []
+  if (authStore.hasPermission('thesis.view')) thesisChildren.push({ label: 'Data Tugas Akhir', to: '/thesis', icon: GraduationCap })
+  if (authStore.hasPermission('thesis.view')) thesisChildren.push({ label: 'Monitoring Progress', to: '/thesis/monitoring', icon: LayoutDashboard })
+  if (authStore.hasPermission('guidance.manage')) thesisChildren.push({ label: 'Jadwal Bimbingan', to: '/guidance', icon: Calendar })
+
+  if (thesisChildren.length > 0) {
+    items.push({
+      label: 'Tugas Akhir',
+      icon: GraduationCap,
+      children: thesisChildren
+    })
+  }
+
   // EDOM / Survei
   const edomChildren: any[] = []
   if (authStore.hasPermission('surveys.manage')) edomChildren.push({ label: 'Kelola Instrumen', to: '/surveys', icon: ClipboardList })

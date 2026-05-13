@@ -35,3 +35,8 @@ export { StudentGrade } from './student-grade.entity';
 export { Notification } from './notification.entity';
 export { AuditLog } from './audit-log.entity';
 export { GuidanceSchedule } from './guidance-schedule.entity';
+export { ThesisSubmission } from './thesis-submission.entity';
+export { ThesisSupervisor } from './thesis-supervisor.entity';
+export { ThesisExamSchedule } from './thesis-exam-schedule.entity';
+export { ThesisExaminer } from './thesis-examiner.entity';
+export { GuidanceLog } from './guidance-log.entity';

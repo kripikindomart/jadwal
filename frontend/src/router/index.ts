@@ -300,6 +300,24 @@ const router = createRouter({
       component: () => import("@/pages/guidance/GuidancePage.vue"),
       meta: { layout: "admin" },
     },
+    {
+      path: "/thesis",
+      name: "thesis",
+      component: () => import("@/pages/thesis/ThesisListPage.vue"),
+      meta: { layout: "admin" },
+    },
+    {
+      path: "/thesis/:id",
+      name: "thesis.detail",
+      component: () => import("@/pages/thesis/ThesisDetailPage.vue"),
+      meta: { layout: "admin" },
+    },
+    {
+      path: "/thesis/monitoring",
+      name: "thesis.monitoring",
+      component: () => import("@/pages/thesis/ThesisMonitoringPage.vue"),
+      meta: { layout: "admin" },
+    },
 
     {
       path: "/dosen/:token",
