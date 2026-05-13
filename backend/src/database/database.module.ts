@@ -30,6 +30,7 @@ import {
   ThesisExamSchedule,
   ThesisExaminer,
   GuidanceLog,
+  RescheduleRequest,
 } from './entities';
 
 const entities = [
@@ -39,6 +40,7 @@ const entities = [
   Assignment, Submission, StudentAttendance, StudentGrade,
   Notification, AuditLog, GuidanceSchedule,
   ThesisSubmission, ThesisSupervisor, ThesisExamSchedule, ThesisExaminer, GuidanceLog,
+  RescheduleRequest,
 ];
 
 @Global()

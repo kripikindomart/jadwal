@@ -40,3 +40,4 @@ export { ThesisSupervisor } from './thesis-supervisor.entity';
 export { ThesisExamSchedule } from './thesis-exam-schedule.entity';
 export { ThesisExaminer } from './thesis-examiner.entity';
 export { GuidanceLog } from './guidance-log.entity';
+export { RescheduleRequest } from './reschedule-request.entity';

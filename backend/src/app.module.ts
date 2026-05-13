@@ -26,6 +26,7 @@ import { CalendarModule } from './modules/calendar/calendar.module';
 import { AiModule } from './modules/ai/ai.module';
 import { GuidanceModule } from './modules/guidance/guidance.module';
 import { ThesisModule } from './modules/thesis/thesis.module';
+import { RescheduleModule } from './modules/reschedule/reschedule.module';
 @Module({
   imports: [
     // Global config
@@ -76,6 +77,7 @@ import { ThesisModule } from './modules/thesis/thesis.module';
     AiModule,
     GuidanceModule,
     ThesisModule,
+    RescheduleModule,
   ],
 })
 export class AppModule {}

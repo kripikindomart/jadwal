@@ -318,6 +318,12 @@ const router = createRouter({
       component: () => import("@/pages/thesis/ThesisMonitoringPage.vue"),
       meta: { layout: "admin" },
     },
+    {
+      path: "/reschedule",
+      name: "reschedule",
+      component: () => import("@/pages/reschedule/ReschedulePage.vue"),
+      meta: { layout: "admin" },
+    },
 
     {
       path: "/dosen/:token",
