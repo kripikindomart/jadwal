@@ -75,9 +75,17 @@ onUnmounted(() => {
 
 async function fetchData() {
   try {
-    const { data } = await api.get('/display/today-schedule')
-    schedules.value = data.schedules || []
-    semester.value = data.semester || ''
+    const [scheduleRes, guidanceRes] = await Promise.all([
+      api.get('/display/today-schedule'),
+      api.get('/guidance/today'),
+    ])
+    schedules.value = scheduleRes.data.schedules || []
+    semester.value = scheduleRes.data.semester || ''
+    bimbingan.value = (guidanceRes.data || []).map((g: any) => ({
+      time: g.time,
+      title: g.title,
+      info: g.info,
+    }))
   } catch (e) {
     console.error('Display fetch error:', e)
   } finally {
@@ -173,13 +181,34 @@ const showFlyerMode = computed(() => {
     <!-- ============ LEFT PANEL: Jadwal (60%) ============ -->
     <section class="flex-[3] flex flex-col min-h-0 bg-white/80 backdrop-blur border-r border-slate-200">
 
-      <!-- Title -->
-      <div class="px-10 pt-8 pb-4 shrink-0">
-        <h1 class="text-3xl font-bold text-slate-900 tracking-tight leading-tight">
-          JADWAL KULIAH & BIMBINGAN
-        </h1>
-        <p class="text-sm text-emerald-700 font-semibold mt-1">{{ semester }}</p>
+      <!-- FLYER MODE: when no schedule and no bimbingan -->
+      <div v-if="showFlyerMode" class="flex-1 relative overflow-hidden">
+        <div v-for="(flyer, idx) in flyers" :key="idx"
+          :class="['absolute inset-0 transition-opacity duration-1000', currentFlyer === idx ? 'opacity-100' : 'opacity-0']">
+          <img :src="flyer.src" class="w-full h-full object-cover" />
+          <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/10"></div>
+          <div class="absolute bottom-0 left-0 right-0 p-12">
+            <p class="text-emerald-300 text-sm font-bold uppercase tracking-widest mb-2">{{ flyer.subtitle }}</p>
+            <h2 class="text-white text-4xl font-bold leading-tight mb-3 drop-shadow-lg">{{ flyer.title }}</h2>
+            <p class="text-white/90 text-lg leading-relaxed max-w-xl">{{ flyer.desc }}</p>
+          </div>
+        </div>
+        <!-- Flyer indicators -->
+        <div class="absolute bottom-5 right-8 flex gap-2">
+          <div v-for="(_, idx) in flyers" :key="idx"
+            :class="['h-2 rounded-full transition-all', currentFlyer === idx ? 'w-8 bg-emerald-400' : 'w-2 bg-white/50']"></div>
+        </div>
       </div>
+
+      <!-- SCHEDULE MODE: when there are schedules or bimbingan -->
+      <template v-else>
+        <!-- Title -->
+        <div class="px-10 pt-8 pb-4 shrink-0">
+          <h1 class="text-3xl font-bold text-slate-900 tracking-tight leading-tight">
+            JADWAL KULIAH & BIMBINGAN
+          </h1>
+          <p class="text-sm text-emerald-700 font-semibold mt-1">{{ semester }}</p>
+        </div>
 
       <!-- Scroll area -->
       <div ref="scheduleScrollRef" class="flex-1 overflow-y-auto px-10 pb-6 scroll-smooth">
@@ -226,7 +255,7 @@ const showFlyerMode = computed(() => {
         </div>
 
         <!-- BIMBINGAN TESIS/DISERTASI -->
-        <div>
+        <div v-if="bimbingan.length > 0">
           <div class="flex items-center gap-2 mb-4">
             <div class="h-1 w-8 bg-violet-500 rounded-full"></div>
             <svg class="h-4 w-4 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
@@ -254,6 +283,7 @@ const showFlyerMode = computed(() => {
         <span>Program Pascasarjana · Sistem Informasi Akademik</span>
         <span>{{ formattedDate }}</span>
       </div>
+      </template>
     </section>
 
     <!-- ============ RIGHT PANEL: Clock + Highlight + Prayer (40%) ============ -->
