@@ -42,6 +42,23 @@ export class GuidanceController {
     return this.guidanceService.createRequestFromPortal(nim, body);
   }
 
+  @Public()
+  @Post('portal/:nim/thesis/submit')
+  @ApiOperation({ summary: 'Portal mahasiswa: ajukan judul tugas akhir' })
+  submitThesis(
+    @Param('nim') nim: string,
+    @Body() body: { title: string; titleEn?: string; abstract?: string; type?: string },
+  ) {
+    return this.guidanceService.submitThesisFromPortal(nim, body);
+  }
+
+  @Public()
+  @Get('portal/:nim/thesis')
+  @ApiOperation({ summary: 'Portal mahasiswa: lihat data tugas akhir saya' })
+  getMyThesis(@Param('nim') nim: string) {
+    return this.guidanceService.getMyThesis(nim);
+  }
+
   // ============ AUTHENTICATED STUDENT ============
 
   @ApiBearerAuth()

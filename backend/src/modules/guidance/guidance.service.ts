@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { GuidanceSchedule, LecturerProfile, StudentProfile } from '../../database/entities';
+import { GuidanceSchedule, LecturerProfile, StudentProfile, ThesisSubmission } from '../../database/entities';
 import { GuidanceStatus } from '../../database/entities/guidance-schedule.entity';
+import { ThesisStatus } from '../../database/entities/thesis-submission.entity';
 
 @Injectable()
 export class GuidanceService {
@@ -13,6 +14,8 @@ export class GuidanceService {
     private readonly lecturerProfileRepo: Repository<LecturerProfile>,
     @InjectRepository(StudentProfile)
     private readonly studentProfileRepo: Repository<StudentProfile>,
+    @InjectRepository(ThesisSubmission)
+    private readonly thesisRepo: Repository<ThesisSubmission>,
   ) {}
 
   // ============ STUDENT: Request Bimbingan ============
@@ -215,6 +218,46 @@ export class GuidanceService {
   async delete(id: number) {
     await this.guidanceRepo.softDelete(id);
     return { message: 'Jadwal bimbingan berhasil dihapus' };
+  }
+
+  // ============ STUDENT PORTAL: THESIS ============
+
+  async submitThesisFromPortal(nim: string, data: { title: string; titleEn?: string; abstract?: string; type?: string }) {
+    const profile = await this.studentProfileRepo.findOne({ where: { nim } });
+    if (!profile) throw new NotFoundException('NIM tidak ditemukan');
+
+    const thesis = this.thesisRepo.create({
+      studentId: profile.userId,
+      prodiId: profile.prodiId,
+      title: data.title,
+      titleEn: data.titleEn,
+      abstract: data.abstract,
+      type: data.type || 'TESIS',
+      status: ThesisStatus.SUBMITTED,
+      submittedAt: new Date(),
+    });
+    await this.thesisRepo.save(thesis);
+
+    return { message: 'Judul tugas akhir berhasil diajukan', data: thesis };
+  }
+
+  async getMyThesis(nim: string) {
+    const profile = await this.studentProfileRepo.findOne({ where: { nim } });
+    if (!profile) throw new NotFoundException('NIM tidak ditemukan');
+
+    const theses = await this.thesisRepo.find({
+      where: { studentId: profile.userId },
+      order: { createdAt: 'DESC' },
+    });
+
+    return theses.map(t => ({
+      id: t.id,
+      title: t.title,
+      type: t.type,
+      status: t.status,
+      submittedAt: t.submittedAt,
+      approvedAt: t.approvedAt,
+    }));
   }
 
   // ============ DISPLAY TV: Today's Guidance ============

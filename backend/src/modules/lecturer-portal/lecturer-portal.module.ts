@@ -16,6 +16,9 @@ import {
   Submission,
   StudentAttendance,
   StudentGrade,
+  ThesisSubmission,
+  ThesisSupervisor,
+  GuidanceLog,
 } from '../../database/entities';
 
 @Module({
@@ -33,6 +36,9 @@ import {
       Submission,
       StudentAttendance,
       StudentGrade,
+      ThesisSubmission,
+      ThesisSupervisor,
+      GuidanceLog,
     ]),
   ],
   controllers: [LecturerPortalController, PublicAssignmentController],

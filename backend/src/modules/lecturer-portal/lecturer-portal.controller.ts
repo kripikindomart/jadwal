@@ -163,4 +163,38 @@ export class LecturerPortalController {
   revokeToken(@Param('lecturerId', ParseIntPipe) lecturerId: number) {
     return this.portalService.revokeToken(lecturerId);
   }
+
+  // ============ THESIS / BIMBINGAN TESIS ============
+
+  @Public()
+  @Get(':token/thesis-students')
+  @ApiOperation({ summary: 'List mahasiswa bimbingan tesis/disertasi dosen ini' })
+  getThesisStudents(@Param('token') token: string) {
+    return this.portalService.getThesisStudents(token);
+  }
+
+  @Public()
+  @Get(':token/thesis/:thesisId/logs')
+  @ApiOperation({ summary: 'List log bimbingan per mahasiswa' })
+  getThesisLogs(
+    @Param('token') token: string,
+    @Param('thesisId', ParseIntPipe) thesisId: number,
+  ) {
+    return this.portalService.getThesisLogs(token, thesisId);
+  }
+
+  @Public()
+  @Post(':token/thesis/:thesisId/logs')
+  @ApiOperation({ summary: 'Isi log bimbingan (dosen)' })
+  addThesisLog(
+    @Param('token') token: string,
+    @Param('thesisId', ParseIntPipe) thesisId: number,
+    @Body() body: {
+      date: string; startTime?: string; endTime?: string;
+      topic: string; notes?: string; studentProgress?: string;
+      nextAction?: string; chapter?: string;
+    },
+  ) {
+    return this.portalService.addThesisLog(token, thesisId, body);
+  }
 }

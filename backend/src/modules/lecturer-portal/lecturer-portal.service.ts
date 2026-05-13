@@ -18,6 +18,9 @@ import {
   Submission,
   StudentAttendance,
   StudentGrade,
+  ThesisSubmission,
+  ThesisSupervisor,
+  GuidanceLog,
 } from '../../database/entities';
 
 @Injectable()
@@ -47,6 +50,12 @@ export class LecturerPortalService {
     private readonly attendanceRepo: Repository<StudentAttendance>,
     @InjectRepository(StudentGrade)
     private readonly gradeRepo: Repository<StudentGrade>,
+    @InjectRepository(ThesisSubmission)
+    private readonly thesisRepo: Repository<ThesisSubmission>,
+    @InjectRepository(ThesisSupervisor)
+    private readonly thesisSupervisorRepo: Repository<ThesisSupervisor>,
+    @InjectRepository(GuidanceLog)
+    private readonly guidanceLogRepo: Repository<GuidanceLog>,
   ) {}
 
   // ============ AUTH / VALIDATE TOKEN ============
@@ -527,6 +536,70 @@ export class LecturerPortalService {
     await this.profileRepo.save(profile);
 
     return { message: 'Token berhasil dicabut' };
+  }
+
+  // ============ THESIS / BIMBINGAN TESIS ============
+
+  async getThesisStudents(token: string) {
+    const profile = await this.getProfile(token);
+
+    const supervisors = await this.thesisSupervisorRepo.find({
+      where: { lecturerId: profile.userId },
+      relations: ['thesis', 'thesis.student', 'thesis.student.studentProfile', 'thesis.prodi'],
+    });
+
+    return supervisors.map((s) => ({
+      thesisId: s.thesis.id,
+      studentName: s.thesis.student?.name || '-',
+      studentNim: s.thesis.student?.studentProfile?.nim || '-',
+      title: s.thesis.title,
+      type: s.thesis.type,
+      status: s.thesis.status,
+      role: s.role,
+      prodi: s.thesis.prodi?.name || '-',
+    }));
+  }
+
+  async getThesisLogs(token: string, thesisId: number) {
+    const profile = await this.getProfile(token);
+
+    // Verify this lecturer is supervisor
+    const sup = await this.thesisSupervisorRepo.findOne({
+      where: { thesisId, lecturerId: profile.userId },
+    });
+    if (!sup) throw new BadRequestException('Anda bukan pembimbing mahasiswa ini');
+
+    const logs = await this.guidanceLogRepo.find({
+      where: { thesisId },
+      order: { date: 'DESC' },
+    });
+
+    return logs;
+  }
+
+  async addThesisLog(token: string, thesisId: number, data: {
+    date: string; startTime?: string; endTime?: string;
+    topic: string; notes?: string; studentProgress?: string;
+    nextAction?: string; chapter?: string;
+  }) {
+    const profile = await this.getProfile(token);
+
+    const sup = await this.thesisSupervisorRepo.findOne({
+      where: { thesisId, lecturerId: profile.userId },
+      relations: ['thesis'],
+    });
+    if (!sup) throw new BadRequestException('Anda bukan pembimbing mahasiswa ini');
+
+    const log = this.guidanceLogRepo.create({
+      thesisId,
+      lecturerId: profile.userId,
+      studentId: sup.thesis.studentId,
+      ...data,
+      status: 'DONE',
+    });
+    await this.guidanceLogRepo.save(log);
+
+    return { message: 'Log bimbingan berhasil ditambahkan', data: log };
   }
 
   // ============ HELPERS ============
