@@ -196,35 +196,50 @@ export class LecturerPortalService {
   private async autoGenerateFromSchedules(classCourseId: number) {
     const cc = await this.classCourseRepo.findOne({ where: { id: classCourseId } });
     const total = cc?.totalMeetings || 16;
+    const onlinePct = cc?.onlinePercentage || 0;
+
+    // Determine how many meetings are online based on percentage
+    const onlineCount = Math.round((onlinePct / 100) * total);
 
     // Get all schedules for this class course (sorted by date)
     const schedules = await this.scheduleRepo.find({
       where: { classCourseId },
       order: { date: 'ASC', dayOfWeek: 'ASC' },
+      relations: ['room'],
     });
 
     const meetings: Partial<ClassMeeting>[] = [];
 
+    // Determine mode per meeting: distribute online meetings evenly
+    function getMode(index: number): string {
+      if (onlinePct === 0) return 'OFFLINE';
+      if (onlinePct === 100) return 'ONLINE';
+      // Distribute online meetings evenly (e.g., every Nth meeting)
+      const interval = Math.floor(total / onlineCount);
+      return (index % interval === interval - 1) ? 'ONLINE' : 'OFFLINE';
+    }
+
     if (schedules.length > 0) {
-      // Generate meetings based on actual schedule dates
       for (let i = 0; i < Math.min(schedules.length, total); i++) {
         const sched = schedules[i];
         let type = 'KULIAH';
         if (i + 1 === Math.ceil(total / 2)) type = 'UTS';
         if (i + 1 === total) type = 'UAS';
 
+        // If room is null/empty, it's likely online
+        const mode = !sched.roomId ? 'ONLINE' : getMode(i);
+
         meetings.push({
           classCourseId,
           meetingNumber: i + 1,
           date: sched.date ? new Date(sched.date) : undefined,
           type,
-          mode: 'OFFLINE',
+          mode,
           isLocked: false,
           scheduleIdRef: sched.id,
         });
       }
 
-      // If schedules < total meetings, generate remaining with weekly interval from last schedule
       if (schedules.length < total) {
         const lastSched = schedules[schedules.length - 1];
         const lastDate = lastSched.date ? new Date(lastSched.date) : new Date();
@@ -242,13 +257,12 @@ export class LecturerPortalService {
             meetingNumber: i + 1,
             date,
             type,
-            mode: 'OFFLINE',
+            mode: getMode(i),
             isLocked: false,
           });
         }
       }
     } else {
-      // No schedules exist, generate with weekly interval from start date
       const startDate = cc?.startDate ? new Date(cc.startDate) : new Date();
       for (let i = 0; i < total; i++) {
         const date = new Date(startDate);
@@ -263,7 +277,7 @@ export class LecturerPortalService {
           meetingNumber: i + 1,
           date,
           type,
-          mode: 'OFFLINE',
+          mode: getMode(i),
           isLocked: false,
         });
       }

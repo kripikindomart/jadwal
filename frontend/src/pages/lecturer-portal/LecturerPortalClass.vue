@@ -24,7 +24,7 @@ const assignments = ref<any[]>([])
 
 const selectedMeeting = ref<number | null>(null)
 const saving = ref(false)
-const journalForm = ref({ topic: '', notes: '', mode: 'OFFLINE' })
+const journalForm = ref({ topic: '', notes: '', mode: 'OFFLINE', materialFile: '' })
 const editingMeetingId = ref<number | null>(null)
 const newAssignment = ref({ title: '', description: '', deadline: '' })
 const showNewAssignment = ref(false)
@@ -47,7 +47,7 @@ onMounted(async () => {
 
 function startEditJournal(meeting: any) {
   editingMeetingId.value = meeting.id
-  journalForm.value = { topic: meeting.topic || '', notes: meeting.notes || '', mode: meeting.mode || 'OFFLINE' }
+  journalForm.value = { topic: meeting.topic || '', notes: meeting.notes || '', mode: meeting.mode || 'OFFLINE', materialFile: meeting.materialFile || '' }
 }
 
 async function saveJournal() {
@@ -260,6 +260,7 @@ const tabs = [
                   <p v-if="m.topic" class="text-sm font-medium text-slate-800">{{ m.topic }}</p>
                   <p v-else class="text-sm text-slate-400 italic">Belum diisi</p>
                   <p v-if="m.notes" class="text-xs text-slate-500 mt-0.5 line-clamp-2">{{ m.notes }}</p>
+                  <a v-if="m.materialFile" :href="m.materialFile" target="_blank" class="inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline mt-1">📎 Materi</a>
                 </div>
                 <button v-if="!m.isLocked && editingMeetingId !== m.id" @click="startEditJournal(m)"
                   class="text-xs font-medium text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 px-2.5 py-1 rounded-md transition-colors shrink-0">
@@ -273,6 +274,12 @@ const tabs = [
                   class="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
                 <textarea v-model="journalForm.notes" placeholder="Catatan tambahan (opsional)" rows="3"
                   class="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 resize-none"></textarea>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Upload Materi (PDF/PPT/DOC)</label>
+                  <input v-model="journalForm.materialFile" type="text" placeholder="URL file materi (upload via media library)"
+                    class="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
+                  <p class="text-[10px] text-slate-400 mt-1">Paste URL file yang sudah diupload, atau kosongkan jika tidak ada materi</p>
+                </div>
                 <div class="flex items-center gap-3">
                   <select v-model="journalForm.mode" class="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
                     <option value="OFFLINE">Offline</option>

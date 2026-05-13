@@ -208,7 +208,7 @@ const menuItems = computed(() => {
   // EDOM / Survei
   const edomChildren: any[] = []
   if (authStore.hasPermission('surveys.manage')) edomChildren.push({ label: 'Kelola Instrumen', to: '/surveys', icon: ClipboardList })
-  edomChildren.push({ label: 'Survei Saya', to: '/surveys/my-pending', icon: ClipboardList })
+  if (authStore.hasAnyRole(['mahasiswa', 'dosen'])) edomChildren.push({ label: 'Survei Saya', to: '/surveys/my-pending', icon: ClipboardList })
 
   if (edomChildren.length > 0) {
     items.push({
@@ -218,15 +218,15 @@ const menuItems = computed(() => {
     })
   }
 
-  // Layanan Surat
-  const letterChildren: any[] = []
-  letterChildren.push({ label: 'Klasifikasi Kode', to: '/letters/classifications', icon: Tags })
-  letterChildren.push({ label: 'Jenis Surat', to: '/letters', icon: Mail })
-  letterChildren.push({ label: 'Template Surat', to: '/letters/templates', icon: Mail })
-  letterChildren.push({ label: 'Inbox Pengajuan', to: '/letters/requests', icon: Mail })
-  letterChildren.push({ label: 'Manajemen PIN', to: '/letters/pins', icon: Key })
+  // Layanan Surat (hanya admin/staff)
+  if (authStore.hasAnyRole(['superadmin', 'admin', 'staff'])) {
+    const letterChildren: any[] = []
+    letterChildren.push({ label: 'Klasifikasi Kode', to: '/letters/classifications', icon: Tags })
+    letterChildren.push({ label: 'Jenis Surat', to: '/letters', icon: Mail })
+    letterChildren.push({ label: 'Template Surat', to: '/letters/templates', icon: Mail })
+    letterChildren.push({ label: 'Inbox Pengajuan', to: '/letters/requests', icon: Mail })
+    letterChildren.push({ label: 'Manajemen PIN', to: '/letters/pins', icon: Key })
 
-  if (letterChildren.length > 0) {
     items.push({
       label: 'Layanan Surat',
       icon: Mail,
@@ -253,8 +253,15 @@ const menuItems = computed(() => {
     items.push({ label: 'Pengaturan', icon: Settings, to: '/settings' })
   }
 
-  // Display TV (link ke halaman publik, buka di tab baru)
-  items.push({ label: 'Display TV', icon: LayoutDashboard, to: '/display/tv' })
+  // Mahasiswa: Pengajuan Surat (link ke portal publik)
+  if (authStore.hasRole('mahasiswa')) {
+    items.push({ label: 'Pengajuan Surat', icon: Mail, to: '/layanan-surat' })
+  }
+
+  // Display TV (hanya admin/staff)
+  if (authStore.hasAnyRole(['superadmin', 'admin', 'staff'])) {
+    items.push({ label: 'Display TV', icon: LayoutDashboard, to: '/display/tv' })
+  }
 
   return items
 })
