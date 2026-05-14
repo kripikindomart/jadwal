@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/lib/api'
+import { useToast } from '@/composables/useToast'
 import SearchableSelect from '@/components/ui/SearchableSelect.vue'
 import {
   ArrowLeft, UserPlus, Calendar, Loader2, CheckCircle2, XCircle,
@@ -11,6 +12,7 @@ import {
 
 const route = useRoute()
 const router = useRouter()
+const toast = useToast()
 const id = Number(route.params.id)
 
 const loading = ref(true)
