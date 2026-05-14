@@ -17,6 +17,8 @@ const concentrations = ref<any[]>([])
 const showForm = ref(false)
 const submitting = ref(false)
 const savingDraft = ref(false)
+const uploading = ref(false)
+const uploadedFileName = ref('')
 
 const form = ref({
   title: '',
@@ -62,6 +64,46 @@ onMounted(async () => {
   } catch { /* silent */ }
   finally { loading.value = false }
 })
+
+async function handleFileSelect(e: Event) {
+  const input = e.target as HTMLInputElement
+  if (input.files && input.files.length > 0) {
+    await uploadFile(input.files[0] as File)
+  }
+}
+
+function handleDrop(e: DragEvent) {
+  const files = e.dataTransfer?.files
+  if (files && files.length > 0) {
+    uploadFile(files[0] as File)
+  }
+}
+
+async function uploadFile(file: File) {
+  if (file.size > 5 * 1024 * 1024) {
+    alert('Ukuran file maksimal 5MB')
+    return
+  }
+  if (!file.name.match(/\.(pdf|doc|docx)$/i)) {
+    alert('Format file harus PDF, DOC, atau DOCX')
+    return
+  }
+
+  uploading.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const { data } = await api.post('/guidance/my-thesis/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    form.value.documentUrl = data.url
+    uploadedFileName.value = file.name
+  } catch (e: any) {
+    alert(e.response?.data?.message || 'Gagal upload file')
+  } finally {
+    uploading.value = false
+  }
+}
 
 async function submitProposal() {
   if (!form.value.title || form.value.title.length < 8) {
@@ -243,7 +285,7 @@ const guidelines = [
               <label class="block text-xs font-medium text-slate-600 mb-1.5">Calon Pembimbing Utama</label>
               <SearchableSelect
                 v-model="form.supervisorId1"
-                :options="lecturers.map(l => ({ value: l.id, label: l.fullName || l.name }))"
+                :options="lecturers.filter(l => l.id != form.supervisorId2).map(l => ({ value: l.id, label: l.fullName || l.name }))"
                 placeholder="Cari NIDN atau Nama Dosen..."
               />
               <div v-if="form.supervisorId1" class="mt-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2">
@@ -261,7 +303,7 @@ const guidelines = [
               <label class="block text-xs font-medium text-slate-600 mb-1.5">Calon Pembimbing Pendamping</label>
               <SearchableSelect
                 v-model="form.supervisorId2"
-                :options="[{ value: '', label: '— Belum dipilih —' }, ...lecturers.map(l => ({ value: l.id, label: l.fullName || l.name }))]"
+                :options="[{ value: '', label: '— Belum dipilih —' }, ...lecturers.filter(l => l.id != form.supervisorId1).map(l => ({ value: l.id, label: l.fullName || l.name }))]"
                 placeholder="Cari NIDN atau Nama Dosen..."
               />
               <div v-if="form.supervisorId2" class="mt-2 p-2.5 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-2">
@@ -284,18 +326,44 @@ const guidelines = [
             <Upload class="h-5 w-5 text-emerald-600" /> Dokumen Proposal
           </h2>
 
-          <div class="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:border-emerald-300 transition-colors cursor-pointer">
-            <div class="h-14 w-14 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center">
-              <Upload class="h-6 w-6 text-slate-400" />
+          <!-- Uploaded file display -->
+          <div v-if="form.documentUrl" class="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3">
+            <div class="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+              <FileText class="h-5 w-5 text-emerald-600" />
             </div>
-            <p class="text-sm font-medium text-slate-700 mb-1">Tarik & Lepaskan File</p>
-            <p class="text-xs text-slate-400 mb-4">Pastikan file dalam format PDF dengan ukuran maksimal 5MB.</p>
-            <button class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 shadow-sm">
-              Pilih File
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-slate-800 truncate">{{ uploadedFileName || 'Dokumen Proposal' }}</p>
+              <p class="text-xs text-emerald-600">File berhasil diupload</p>
+            </div>
+            <button @click="form.documentUrl = ''; uploadedFileName = ''" class="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50">
+              <X class="h-4 w-4" />
             </button>
           </div>
-          <input v-model="form.documentUrl" type="text" placeholder="Atau paste URL dokumen di sini..."
-            class="w-full mt-3 rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
+
+          <!-- Upload area -->
+          <div v-else class="relative">
+            <div :class="['border-2 border-dashed rounded-2xl p-8 text-center transition-colors cursor-pointer',
+              uploading ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/30']"
+              @click="($refs.fileInput as HTMLInputElement)?.click()"
+              @dragover.prevent
+              @drop.prevent="handleDrop">
+              <div v-if="uploading" class="flex flex-col items-center">
+                <Loader2 class="h-10 w-10 text-emerald-500 animate-spin mb-3" />
+                <p class="text-sm font-medium text-emerald-700">Mengupload file...</p>
+              </div>
+              <div v-else>
+                <div class="h-14 w-14 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center">
+                  <Upload class="h-6 w-6 text-slate-400" />
+                </div>
+                <p class="text-sm font-medium text-slate-700 mb-1">Tarik & Lepaskan File</p>
+                <p class="text-xs text-slate-400 mb-4">Pastikan file dalam format PDF dengan ukuran maksimal 5MB.</p>
+                <button type="button" class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 shadow-sm">
+                  Pilih File
+                </button>
+              </div>
+            </div>
+            <input ref="fileInput" type="file" accept=".pdf,.doc,.docx" class="hidden" @change="handleFileSelect" />
+          </div>
         </div>
       </div>
 
