@@ -1,8 +1,11 @@
 import {
   Controller, Get, Post, Patch, Delete,
   Body, Param, Query, Req, ParseIntPipe, UseGuards,
+  UseInterceptors, UploadedFile, BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -86,6 +89,76 @@ export class GuidanceController {
     },
   ) {
     return this.guidanceService.createRequest(req.user.id, body);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('my-thesis')
+  @ApiOperation({ summary: 'Mahasiswa: lihat data tugas akhir saya (authenticated)' })
+  getMyThesisAuth(@Req() req: any) {
+    return this.guidanceService.getMyThesisById(req.user.id);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('available-lecturers')
+  @ApiOperation({ summary: 'Mahasiswa: list dosen yang tersedia sebagai pembimbing' })
+  getAvailableLecturers() {
+    return this.guidanceService.getAvailableLecturers();
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('available-concentrations')
+  @ApiOperation({ summary: 'Mahasiswa: list konsentrasi yang tersedia' })
+  getAvailableConcentrations() {
+    return this.guidanceService.getAvailableConcentrations();
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('my-thesis/submit')
+  @ApiOperation({ summary: 'Mahasiswa: ajukan proposal tugas akhir (authenticated)' })
+  submitMyThesis(
+    @Req() req: any,
+    @Body() body: {
+      title: string;
+      titleEn?: string;
+      abstract?: string;
+      type?: string;
+      keywords?: string;
+      concentration?: string;
+      supervisorId1?: number;
+      supervisorId2?: number;
+      documentUrl?: string;
+    },
+  ) {
+    return this.guidanceService.submitThesisAuth(req.user.id, body);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Patch('my-thesis/:id')
+  @ApiOperation({ summary: 'Mahasiswa: update draft proposal' })
+  updateMyThesis(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: any,
+  ) {
+    return this.guidanceService.updateThesisDraft(req.user.id, id, body);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('my-thesis/upload')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  @ApiOperation({ summary: 'Mahasiswa: upload file proposal (PDF)' })
+  async uploadThesisFile(
+    @Req() req: any,
+    @UploadedFile() file: any,
+  ) {
+    if (!file) throw new BadRequestException('File tidak ditemukan');
+    return this.guidanceService.uploadThesisFile(req.user.id, file);
   }
 
   // ============ ADMIN ============

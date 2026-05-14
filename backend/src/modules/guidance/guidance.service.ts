@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { GuidanceSchedule, LecturerProfile, StudentProfile, ThesisSubmission } from '../../database/entities';
+import { GuidanceSchedule, LecturerProfile, StudentProfile, ThesisSubmission, Concentration } from '../../database/entities';
 import { GuidanceStatus } from '../../database/entities/guidance-schedule.entity';
 import { ThesisStatus } from '../../database/entities/thesis-submission.entity';
 
@@ -16,6 +16,8 @@ export class GuidanceService {
     private readonly studentProfileRepo: Repository<StudentProfile>,
     @InjectRepository(ThesisSubmission)
     private readonly thesisRepo: Repository<ThesisSubmission>,
+    @InjectRepository(Concentration)
+    private readonly concentrationRepo: Repository<Concentration>,
   ) {}
 
   // ============ STUDENT: Request Bimbingan ============
@@ -221,6 +223,98 @@ export class GuidanceService {
   }
 
   // ============ STUDENT PORTAL: THESIS ============
+
+  async getMyThesisById(userId: number) {
+    const theses = await this.thesisRepo.find({
+      where: { studentId: userId },
+      order: { createdAt: 'DESC' },
+    });
+    return theses;
+  }
+
+  async getAvailableLecturers() {
+    const lecturers = await this.lecturerProfileRepo.find({
+      relations: ['user'],
+    });
+    return lecturers.map((l) => ({
+      id: l.userId,
+      name: l.user?.name || '-',
+      fullName: `${l.frontTitle || ''} ${l.user?.name || ''} ${l.backTitle || ''}`.trim(),
+      nidn: l.nidn,
+    }));
+  }
+
+  async getAvailableConcentrations() {
+    const data = await this.concentrationRepo.find({
+      where: { isActive: true },
+      relations: ['prodi'],
+      order: { name: 'ASC' },
+    });
+    return data.map((c) => ({
+      id: c.id,
+      name: c.name,
+      prodi: c.prodi?.name || '-',
+    }));
+  }
+
+  async submitThesisAuth(userId: number, data: {
+    title: string; titleEn?: string; abstract?: string; type?: string;
+    keywords?: string; concentration?: string;
+    supervisorId1?: number; supervisorId2?: number; documentUrl?: string;
+  }) {
+    const profile = await this.studentProfileRepo.findOne({ where: { userId } });
+    if (!profile) throw new NotFoundException('Profil mahasiswa tidak ditemukan');
+
+    const thesis = this.thesisRepo.create({
+      studentId: userId,
+      prodiId: profile.prodiId,
+      title: data.title,
+      titleEn: data.titleEn,
+      abstract: data.abstract,
+      type: data.type || 'TESIS',
+      status: ThesisStatus.SUBMITTED,
+      submittedAt: new Date(),
+    });
+    await this.thesisRepo.save(thesis);
+
+    return { message: 'Proposal berhasil diajukan', data: thesis };
+  }
+
+  async updateThesisDraft(userId: number, thesisId: number, data: any) {
+    const thesis = await this.thesisRepo.findOne({ where: { id: thesisId, studentId: userId } });
+    if (!thesis) throw new NotFoundException('Tugas akhir tidak ditemukan');
+
+    if (data.title !== undefined) thesis.title = data.title;
+    if (data.titleEn !== undefined) thesis.titleEn = data.titleEn;
+    if (data.abstract !== undefined) thesis.abstract = data.abstract;
+    if (data.type !== undefined) thesis.type = data.type;
+
+    await this.thesisRepo.save(thesis);
+    return { message: 'Draft berhasil disimpan', data: thesis };
+  }
+
+  async uploadThesisFile(userId: number, file: any): Promise<{ url: string }> {
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabaseUrl = process.env.SUPABASE_URL || 'https://thhtumfgfrcjuznfgmoy.supabase.co';
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_ANON_KEY || '';
+    const bucket = (process.env.SUPABASE_BUCKET || 'uploads').trim();
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const ext = file.originalname.split('.').pop() || 'pdf';
+    const filename = `thesis/${userId}-${Date.now()}.${ext}`;
+
+    const { error } = await supabase.storage
+      .from(bucket)
+      .upload(filename, file.buffer, { contentType: file.mimetype, upsert: true });
+
+    if (error) {
+      throw new BadRequestException('Gagal upload file: ' + error.message);
+    }
+
+    const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(filename);
+    return { url: publicUrlData.publicUrl };
+  }
 
   async submitThesisFromPortal(nim: string, data: { title: string; titleEn?: string; abstract?: string; type?: string }) {
     const profile = await this.studentProfileRepo.findOne({ where: { nim } });
