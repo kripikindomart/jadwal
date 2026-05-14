@@ -6,7 +6,7 @@ import SearchableSelect from '@/components/ui/SearchableSelect.vue'
 import {
   GraduationCap, FileText, Send, Save, Loader2,
   CheckCircle2, Circle, Upload, X, Plus, Clock,
-  BookOpen, Users, AlertCircle,
+  BookOpen, Users, AlertCircle, Shield,
 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
@@ -19,6 +19,8 @@ const submitting = ref(false)
 const savingDraft = ref(false)
 const uploading = ref(false)
 const uploadedFileName = ref('')
+const uploadingPlagiarism = ref(false)
+const plagiarismFileName = ref('')
 
 const form = ref({
   title: '',
@@ -104,6 +106,39 @@ async function uploadFile(file: File) {
     alert(e.response?.data?.message || 'Gagal upload file')
   } finally {
     uploading.value = false
+  }
+}
+
+async function handlePlagiarismSelect(e: Event) {
+  const input = e.target as HTMLInputElement
+  if (input.files && input.files.length > 0) {
+    await uploadPlagiarismFile(input.files[0] as File)
+  }
+}
+
+async function uploadPlagiarismFile(file: File) {
+  if (file.size > 5 * 1024 * 1024) {
+    alert('Ukuran file maksimal 5MB')
+    return
+  }
+  if (!file.name.match(/\.pdf$/i)) {
+    alert('Format file harus PDF')
+    return
+  }
+
+  uploadingPlagiarism.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const { data } = await api.post('/guidance/my-thesis/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    form.value.plagiarismUrl = data.url
+    plagiarismFileName.value = file.name
+  } catch (e: any) {
+    alert(e.response?.data?.message || 'Gagal upload file')
+  } finally {
+    uploadingPlagiarism.value = false
   }
 }
 
@@ -366,6 +401,47 @@ const guidelines = [
               </div>
             </div>
             <input ref="fileInput" type="file" accept=".pdf,.doc,.docx" class="hidden" @change="handleFileSelect" />
+          </div>
+        </div>
+
+        <!-- Upload Hasil Plagiarisme -->
+        <div class="rounded-2xl bg-white border border-slate-100 shadow-sm p-6">
+          <h2 class="text-base font-bold text-slate-800 flex items-center gap-2 mb-5">
+            <Shield class="h-5 w-5 text-blue-600" /> Hasil Cek Plagiarisme
+          </h2>
+
+          <!-- Uploaded plagiarism file -->
+          <div v-if="form.plagiarismUrl" class="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3">
+            <div class="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+              <Shield class="h-5 w-5 text-blue-600" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-slate-800 truncate">{{ plagiarismFileName || 'Hasil Plagiarisme' }}</p>
+              <p class="text-xs text-blue-600">File berhasil diupload</p>
+            </div>
+            <button @click="form.plagiarismUrl = ''; plagiarismFileName = ''" class="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50">
+              <X class="h-4 w-4" />
+            </button>
+          </div>
+
+          <!-- Upload area -->
+          <div v-else class="relative">
+            <div :class="['border-2 border-dashed rounded-2xl p-6 text-center transition-colors cursor-pointer',
+              uploadingPlagiarism ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/30']"
+              @click="($refs.plagiarismInput as HTMLInputElement)?.click()">
+              <div v-if="uploadingPlagiarism" class="flex flex-col items-center">
+                <Loader2 class="h-8 w-8 text-blue-500 animate-spin mb-2" />
+                <p class="text-sm font-medium text-blue-700">Mengupload...</p>
+              </div>
+              <div v-else>
+                <div class="h-12 w-12 mx-auto mb-2 rounded-full bg-blue-50 flex items-center justify-center">
+                  <Shield class="h-5 w-5 text-blue-400" />
+                </div>
+                <p class="text-sm font-medium text-slate-700 mb-1">Upload Hasil Turnitin / Plagiarisme</p>
+                <p class="text-xs text-slate-400">Format PDF, maksimal 5MB</p>
+              </div>
+            </div>
+            <input ref="plagiarismInput" type="file" accept=".pdf" class="hidden" @change="handlePlagiarismSelect" />
           </div>
         </div>
       </div>
