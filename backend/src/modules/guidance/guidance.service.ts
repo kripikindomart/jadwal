@@ -265,6 +265,16 @@ export class GuidanceService {
     const profile = await this.studentProfileRepo.findOne({ where: { userId } });
     if (!profile) throw new NotFoundException('Profil mahasiswa tidak ditemukan');
 
+    // Check: max 3 proposals, and none approved
+    const existing = await this.thesisRepo.find({ where: { studentId: userId } });
+    const hasApproved = existing.some(t => t.status !== ThesisStatus.DRAFT && t.status !== ThesisStatus.SUBMITTED && t.status !== ThesisStatus.REVISION);
+    if (hasApproved) {
+      throw new BadRequestException('Anda sudah memiliki proposal yang disetujui. Tidak bisa mengajukan lagi.');
+    }
+    if (existing.length >= 3) {
+      throw new BadRequestException('Maksimal 3 proposal. Hapus atau tunggu review proposal sebelumnya.');
+    }
+
     const thesis = this.thesisRepo.create({
       studentId: userId,
       prodiId: profile.prodiId,

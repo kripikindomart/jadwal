@@ -42,41 +42,45 @@ export class ThesisService {
     if (search) query = query.andWhere('(t.title ILIKE :search OR student.name ILIKE :search)', { search: `%${search}%` });
 
     query = query.orderBy('t.createdAt', 'DESC');
-    const total = await query.getCount();
-    const data = await query.skip((page - 1) * limit).take(limit).getMany();
+    const allData = await query.getMany();
 
-    // Get supervisors for each thesis
-    const thesisIds = data.map(d => d.id);
-    let supervisors: ThesisSupervisor[] = [];
-    if (thesisIds.length > 0) {
-      supervisors = await this.supervisorRepo.find({
-        where: { thesisId: In(thesisIds) },
-        relations: ['lecturer', 'lecturer.lecturerProfile'],
-      });
-    }
-
-    const supervisorMap = new Map<number, ThesisSupervisor[]>();
-    for (const s of supervisors) {
-      if (!supervisorMap.has(s.thesisId)) supervisorMap.set(s.thesisId, []);
-      supervisorMap.get(s.thesisId)!.push(s);
-    }
-
-    return {
-      data: data.map(t => ({
+    // Group by student
+    const studentMap = new Map<number, { student: any; proposals: any[] }>();
+    for (const t of allData) {
+      if (!studentMap.has(t.studentId)) {
+        studentMap.set(t.studentId, {
+          student: {
+            id: t.studentId,
+            name: t.student?.name || '-',
+            nim: t.student?.studentProfile?.nim || '-',
+            prodi: t.prodi?.name || '-',
+          },
+          proposals: [],
+        });
+      }
+      studentMap.get(t.studentId)!.proposals.push({
         id: t.id,
         title: t.title,
         type: t.type,
         status: t.status,
-        studentName: t.student?.name || '-',
-        studentNim: t.student?.studentProfile?.nim || '-',
-        prodiName: t.prodi?.name || '-',
-        supervisors: (supervisorMap.get(t.id) || []).map(s => ({
-          id: s.id,
-          name: s.lecturer?.name || '-',
-          role: s.role,
-        })),
         submittedAt: t.submittedAt,
-        createdAt: t.createdAt,
+      });
+    }
+
+    const grouped = Array.from(studentMap.values());
+    const total = grouped.length;
+    const paginated = grouped.slice((page - 1) * limit, page * limit);
+
+    return {
+      data: paginated.map(g => ({
+        studentId: g.student.id,
+        studentName: g.student.name,
+        studentNim: g.student.nim,
+        prodiName: g.student.prodi,
+        proposalCount: g.proposals.length,
+        latestStatus: g.proposals[0]?.status || '-',
+        latestTitle: g.proposals[0]?.title || '-',
+        proposals: g.proposals,
       })),
       total,
       page,
@@ -305,6 +309,24 @@ export class ThesisService {
   async updateStatus(id: number, status: ThesisStatus) {
     const thesis = await this.thesisRepo.findOne({ where: { id } });
     if (!thesis) throw new NotFoundException('Tugas akhir tidak ditemukan');
+
+    // Validasi: tidak bisa approve jika mahasiswa sudah punya proposal yang approved
+    if (status === ThesisStatus.TITLE_APPROVED) {
+      const existingApproved = await this.thesisRepo
+        .createQueryBuilder('t')
+        .where('t.studentId = :studentId', { studentId: thesis.studentId })
+        .andWhere('t.id != :id', { id })
+        .andWhere('t.status NOT IN (:...rejectedStatuses)', {
+          rejectedStatuses: [ThesisStatus.DRAFT, ThesisStatus.SUBMITTED, ThesisStatus.REVISION],
+        })
+        .getOne();
+
+      if (existingApproved) {
+        throw new BadRequestException(
+          'Mahasiswa ini sudah memiliki proposal yang disetujui. Batalkan atau reject proposal sebelumnya terlebih dahulu.'
+        );
+      }
+    }
 
     thesis.status = status;
     if (status === ThesisStatus.TITLE_APPROVED) thesis.approvedAt = new Date();
