@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/lib/api'
 import { useToast } from '@/composables/useToast'
@@ -21,13 +21,25 @@ const lecturers = ref<any[]>([])
 const rooms = ref<any[]>([])
 const saving = ref(false)
 
-// Verification checklist
-const checklist = ref({
-  formatOk: false,
-  plagiarismOk: false,
-  fileOk: false,
-})
+// Verification items with per-item status
+const verificationItems = ref([
+  { label: 'Format Penulisan', desc: 'Sesuai Buku Panduan Skripsi/Tesis.', status: 'pending' },
+  { label: 'Bebas Plagiasi', desc: 'Bukti cek Turnitin terlampir (Max 25%).', status: 'pending' },
+  { label: 'Format File', desc: 'Semua lampiran PDF dan terbaca jelas.', status: 'pending' },
+  { label: 'Kelengkapan Dokumen', desc: 'BAB 1-3 lengkap, daftar pustaka ada.', status: 'pending' },
+])
 const verificationNotes = ref('')
+
+const allApproved = computed(() => verificationItems.value.every(i => i.status === 'approved'))
+const hasRevision = computed(() => verificationItems.value.some(i => i.status === 'revision'))
+
+function approveAll() {
+  updateStatus('TITLE_APPROVED')
+}
+
+function requestRevision() {
+  updateStatus('REVISION')
+}
 
 // Forms
 const supervisorForm = ref({ lecturerId: '' as string | number, role: 'PEMBIMBING_1', skNumber: '' })
@@ -348,46 +360,55 @@ const statusBadge: Record<string, { label: string; class: string }> = {
 
         <!-- Checklist Verifikasi -->
         <div class="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">
-          <h3 class="text-sm font-bold text-slate-800 mb-4">Ceklis Verifikasi Berkas</h3>
+          <h3 class="text-sm font-bold text-slate-800 mb-4">Verifikasi Berkas</h3>
           <div class="space-y-3">
-            <label class="flex items-start gap-3 cursor-pointer">
-              <input type="checkbox" v-model="checklist.formatOk" class="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
-              <div>
-                <p class="text-sm font-medium text-slate-700">Sesuai Pedoman</p>
-                <p class="text-[11px] text-slate-400">Format penulisan sesuai Buku Panduan.</p>
+            <div v-for="(item, idx) in verificationItems" :key="idx" class="p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+              <div class="flex items-center justify-between mb-1.5">
+                <p class="text-sm font-medium text-slate-700">{{ item.label }}</p>
+                <span :class="['text-[10px] font-bold px-2 py-0.5 rounded-full',
+                  item.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
+                  item.status === 'revision' ? 'bg-rose-100 text-rose-700' :
+                  'bg-amber-100 text-amber-700']">
+                  {{ item.status === 'approved' ? 'OK' : item.status === 'revision' ? 'REVISI' : 'PENDING' }}
+                </span>
               </div>
-            </label>
-            <label class="flex items-start gap-3 cursor-pointer">
-              <input type="checkbox" v-model="checklist.plagiarismOk" class="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
-              <div>
-                <p class="text-sm font-medium text-slate-700">Bebas Plagiasi</p>
-                <p class="text-[11px] text-slate-400">Sudah melampirkan bukti cek Turnitin (Max 25%).</p>
+              <p class="text-[11px] text-slate-400 mb-2">{{ item.desc }}</p>
+              <div class="flex gap-1.5">
+                <button @click="item.status = 'approved'"
+                  :class="['px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors',
+                    item.status === 'approved' ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-600']">
+                  ✓ Approve
+                </button>
+                <button @click="item.status = 'pending'"
+                  :class="['px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors',
+                    item.status === 'pending' ? 'bg-amber-500 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-amber-300 hover:text-amber-600']">
+                  ◷ Pending
+                </button>
+                <button @click="item.status = 'revision'"
+                  :class="['px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors',
+                    item.status === 'revision' ? 'bg-rose-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-rose-300 hover:text-rose-600']">
+                  ✗ Revisi
+                </button>
               </div>
-            </label>
-            <label class="flex items-start gap-3 cursor-pointer">
-              <input type="checkbox" v-model="checklist.fileOk" class="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
-              <div>
-                <p class="text-sm font-medium text-slate-700">Format File Benar</p>
-                <p class="text-[11px] text-slate-400">Semua lampiran dalam format PDF dan terbaca jelas.</p>
-              </div>
-            </label>
+            </div>
           </div>
 
           <div class="mt-4">
-            <label class="text-xs font-medium text-slate-600 mb-1 block">Catatan Tambahan (Opsional)</label>
-            <textarea v-model="verificationNotes" rows="3" placeholder="Tulis catatan jika ada revisi..."
+            <label class="text-xs font-medium text-slate-600 mb-1 block">Catatan untuk Mahasiswa</label>
+            <textarea v-model="verificationNotes" rows="3" placeholder="Tulis catatan jika ada yang perlu diperbaiki..."
               class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none"></textarea>
           </div>
 
           <div class="mt-4 space-y-2">
-            <button @click="updateStatus('TITLE_APPROVED')"
-              :disabled="!checklist.formatOk || !checklist.plagiarismOk || !checklist.fileOk"
+            <button @click="approveAll"
+              :disabled="!allApproved"
               class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm">
-              <CheckCircle2 class="h-4 w-4" /> Verifikasi Berkas
+              <CheckCircle2 class="h-4 w-4" /> Approve & Lanjutkan
             </button>
-            <button @click="updateStatus('SUBMITTED')"
-              class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">
-              <XCircle class="h-4 w-4" /> Kembalikan (Revisi)
+            <button @click="requestRevision"
+              :disabled="!hasRevision"
+              class="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-rose-200 py-2.5 text-sm font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-40 disabled:cursor-not-allowed">
+              <XCircle class="h-4 w-4" /> Kembalikan untuk Revisi
             </button>
           </div>
         </div>
