@@ -4,7 +4,8 @@ import { useRouter } from 'vue-router'
 import api from '@/lib/api'
 import {
   GraduationCap, Search, Eye, FileCheck, Users, Clock,
-  AlertTriangle, ChevronRight, Filter, Download,
+  AlertTriangle, ChevronRight, ChevronDown, Filter, Download,
+  CheckCircle2, XCircle,
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -14,13 +15,14 @@ const total = ref(0)
 const page = ref(1)
 const search = ref('')
 const filterStatus = ref('')
+const expandedStudent = ref<number | null>(null)
 
 onMounted(() => fetchData())
 
 async function fetchData() {
   loading.value = true
   try {
-    const params: any = { page: page.value, limit: 10 }
+    const params: any = { page: page.value, limit: 20 }
     if (search.value) params.search = search.value
     if (filterStatus.value) params.status = filterStatus.value
     const { data } = await api.get('/thesis', { params })
@@ -30,27 +32,31 @@ async function fetchData() {
   finally { loading.value = false }
 }
 
-// Stats computed
-const needsVerification = computed(() => items.value.filter(i => i.status === 'SUBMITTED').length)
-const needsSupervisor = computed(() => items.value.filter(i => i.status === 'TITLE_APPROVED').length)
-const inReview = computed(() => items.value.filter(i => !['COMPLETED', 'DRAFT'].includes(i.status)).length)
-
-const statusConfig: Record<string, { label: string; class: string; action?: string; actionClass?: string }> = {
-  DRAFT: { label: 'Draft', class: 'text-slate-500' },
-  SUBMITTED: { label: 'Belum Verifikasi', class: 'text-rose-600', action: 'Verifikasi Dokumen', actionClass: 'bg-rose-600 text-white hover:bg-rose-700' },
-  TITLE_APPROVED: { label: 'Plotting Pembimbing', class: 'text-amber-600', action: 'Plotting Pembimbing', actionClass: 'border border-amber-300 text-amber-700 hover:bg-amber-50' },
-  SUPERVISOR_ASSIGNED: { label: 'Menunggu Review Dosen', class: 'text-blue-600', action: 'Lihat Detail', actionClass: 'border border-slate-200 text-slate-600 hover:bg-slate-50' },
-  PROPOSAL_GUIDANCE: { label: 'Bimbingan Proposal', class: 'text-violet-600' },
-  PROPOSAL_EXAM_SCHEDULED: { label: 'Sidang Terjadwal', class: 'text-violet-600' },
-  PROPOSAL_PASSED: { label: 'Proposal Lulus', class: 'text-emerald-600' },
-  THESIS_GUIDANCE: { label: 'Bimbingan Tesis', class: 'text-amber-600' },
-  RESULT_PASSED: { label: 'Seminar Lulus', class: 'text-emerald-600' },
-  REVISION: { label: 'Revisi', class: 'text-orange-600' },
-  COMPLETED: { label: 'Selesai', class: 'text-green-700' },
+function toggleExpand(studentId: number) {
+  expandedStudent.value = expandedStudent.value === studentId ? null : studentId
 }
 
 function getInitials(name: string) {
-  return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+  return (name || '-').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+}
+
+const needsAction = computed(() => items.value.filter(i => i.latestStatus === 'SUBMITTED').length)
+const hasApproved = computed(() => items.value.filter(i => i.proposals?.some((p: any) => !['DRAFT', 'SUBMITTED', 'REVISION'].includes(p.status))).length)
+
+const statusConfig: Record<string, { label: string; class: string }> = {
+  DRAFT: { label: 'Draft', class: 'bg-slate-100 text-slate-600' },
+  SUBMITTED: { label: 'Menunggu Review', class: 'bg-amber-100 text-amber-700' },
+  TITLE_APPROVED: { label: 'Disetujui', class: 'bg-emerald-100 text-emerald-700' },
+  SUPERVISOR_ASSIGNED: { label: 'Pembimbing OK', class: 'bg-teal-100 text-teal-700' },
+  PROPOSAL_GUIDANCE: { label: 'Bimbingan', class: 'bg-blue-100 text-blue-700' },
+  PROPOSAL_PASSED: { label: 'Proposal Lulus', class: 'bg-emerald-100 text-emerald-700' },
+  THESIS_GUIDANCE: { label: 'Bimbingan Tesis', class: 'bg-blue-100 text-blue-700' },
+  REVISION: { label: 'Revisi', class: 'bg-rose-100 text-rose-700' },
+  COMPLETED: { label: 'Selesai', class: 'bg-green-100 text-green-800' },
+}
+
+function hasApprovedProposal(item: any) {
+  return item.proposals?.some((p: any) => !['DRAFT', 'SUBMITTED', 'REVISION'].includes(p.status))
 }
 </script>
 
@@ -60,150 +66,135 @@ function getInitials(name: string) {
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
         <h1 class="text-2xl font-bold text-slate-900">Daftar Pengajuan Tesis</h1>
-        <p class="text-sm text-slate-500 mt-1">Pantau dan verifikasi dokumen pengajuan tesis/disertasi mahasiswa.</p>
+        <p class="text-sm text-slate-500 mt-1">Kelola pengajuan proposal mahasiswa. Klik mahasiswa untuk melihat semua proposal.</p>
       </div>
       <button class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm">
-        <Download class="h-4 w-4" /> Eksport Laporan
+        <Download class="h-4 w-4" /> Eksport
       </button>
     </div>
 
-    <!-- Stats Cards -->
+    <!-- Stats -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <div class="rounded-2xl bg-white border border-rose-100 p-5 flex items-center gap-4">
-        <div class="h-12 w-12 rounded-xl bg-rose-100 flex items-center justify-center">
-          <FileCheck class="h-6 w-6 text-rose-600" />
-        </div>
-        <div>
-          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Perlu Verifikasi</p>
-          <p class="text-2xl font-bold text-slate-900">{{ needsVerification }}</p>
-          <p class="text-[10px] text-rose-600 font-medium">! Butuh segera diproses</p>
-        </div>
-      </div>
       <div class="rounded-2xl bg-white border border-amber-100 p-5 flex items-center gap-4">
         <div class="h-12 w-12 rounded-xl bg-amber-100 flex items-center justify-center">
-          <Users class="h-6 w-6 text-amber-600" />
+          <Clock class="h-6 w-6 text-amber-600" />
         </div>
         <div>
-          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Belum Ada Pembimbing</p>
-          <p class="text-2xl font-bold text-slate-900">{{ needsSupervisor }}</p>
-          <p class="text-[10px] text-amber-600 font-medium">Menunggu plotting staf</p>
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Perlu Review</p>
+          <p class="text-2xl font-bold text-slate-900">{{ needsAction }}</p>
         </div>
       </div>
-      <div class="rounded-2xl bg-white border border-blue-100 p-5 flex items-center gap-4">
-        <div class="h-12 w-12 rounded-xl bg-blue-100 flex items-center justify-center">
-          <Clock class="h-6 w-6 text-blue-600" />
+      <div class="rounded-2xl bg-white border border-emerald-100 p-5 flex items-center gap-4">
+        <div class="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center">
+          <CheckCircle2 class="h-6 w-6 text-emerald-600" />
         </div>
         <div>
-          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Sedang Direview</p>
-          <p class="text-2xl font-bold text-slate-900">{{ inReview }}</p>
-          <p class="text-[10px] text-blue-600 font-medium">Total proses aktif</p>
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Sudah Approved</p>
+          <p class="text-2xl font-bold text-slate-900">{{ hasApproved }}</p>
+        </div>
+      </div>
+      <div class="rounded-2xl bg-white border border-slate-100 p-5 flex items-center gap-4">
+        <div class="h-12 w-12 rounded-xl bg-slate-100 flex items-center justify-center">
+          <Users class="h-6 w-6 text-slate-600" />
+        </div>
+        <div>
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Mahasiswa</p>
+          <p class="text-2xl font-bold text-slate-900">{{ total }}</p>
         </div>
       </div>
     </div>
 
     <!-- Filters -->
     <div class="flex gap-3 flex-wrap items-center">
-      <div class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 bg-white">
-        <Filter class="h-4 w-4 text-slate-400" />
-        <select v-model="filterStatus" @change="fetchData()" class="text-sm border-none outline-none bg-transparent text-slate-700">
-          <option value="">Semua Status</option>
-          <option value="SUBMITTED">Belum Verifikasi</option>
-          <option value="TITLE_APPROVED">Perlu Pembimbing</option>
-          <option value="SUPERVISOR_ASSIGNED">Menunggu Review</option>
-          <option value="PROPOSAL_GUIDANCE">Bimbingan Proposal</option>
-          <option value="THESIS_GUIDANCE">Bimbingan Tesis</option>
-          <option value="REVISION">Revisi</option>
-          <option value="COMPLETED">Selesai</option>
-        </select>
+      <div class="relative flex-1 max-w-xs">
+        <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        <input v-model="search" @input="fetchData()" placeholder="Cari nama atau judul..."
+          class="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
       </div>
-      <div class="flex-1"></div>
-      <p class="text-xs text-slate-400">Menampilkan {{ items.length }} dari {{ total }} pengajuan</p>
+      <select v-model="filterStatus" @change="fetchData()" class="rounded-xl border border-slate-200 px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
+        <option value="">Semua Status</option>
+        <option value="SUBMITTED">Menunggu Review</option>
+        <option value="TITLE_APPROVED">Disetujui</option>
+        <option value="REVISION">Revisi</option>
+        <option value="COMPLETED">Selesai</option>
+      </select>
     </div>
 
-    <!-- Table -->
-    <div class="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
-      <table v-if="items.length" class="w-full text-sm">
-        <thead class="border-b border-slate-100">
-          <tr class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            <th class="text-left py-4 px-5">Mahasiswa</th>
-            <th class="text-left py-4 px-5">Judul Tesis</th>
-            <th class="text-left py-4 px-5">Status</th>
-            <th class="text-left py-4 px-5">Tindakan Utama</th>
-            <th class="text-center py-4 px-5"></th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-50">
-          <tr v-for="item in items" :key="item.id" class="hover:bg-slate-50/50 transition-colors">
-            <td class="py-4 px-5">
-              <div class="flex items-center gap-3">
-                <div class="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-xs font-bold shadow-sm">
-                  {{ getInitials(item.studentName || '-') }}
-                </div>
-                <div>
-                  <p class="font-semibold text-slate-800">{{ item.studentName }}</p>
-                  <p class="text-xs text-slate-400">{{ item.studentNim }}</p>
-                </div>
-              </div>
-            </td>
-            <td class="py-4 px-5 max-w-[250px]">
-              <p class="text-slate-700 line-clamp-2 leading-snug">{{ item.title }}</p>
-              <p class="text-[10px] text-slate-400 mt-0.5">{{ item.type }}</p>
-            </td>
-            <td class="py-4 px-5">
-              <span :class="['inline-flex items-center gap-1.5 text-xs font-semibold', statusConfig[item.status]?.class || 'text-slate-500']">
-                <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                {{ statusConfig[item.status]?.label || item.status }}
-              </span>
-            </td>
-            <td class="py-4 px-5">
-              <button v-if="statusConfig[item.status]?.action"
-                @click="router.push(`/thesis/${item.id}`)"
-                :class="['inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors', statusConfig[item.status]?.actionClass]">
-                {{ statusConfig[item.status]?.action }}
-              </button>
-              <button v-else @click="router.push(`/thesis/${item.id}`)" class="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1">
-                <Eye class="h-3.5 w-3.5" /> Lihat Detail
-              </button>
-            </td>
-            <td class="py-4 px-5 text-center">
-              <button @click="router.push(`/thesis/${item.id}`)" class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
-                <ChevronRight class="h-4 w-4" />
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <div v-else-if="!loading" class="p-12 text-center text-slate-400">
+    <!-- Student List -->
+    <div class="space-y-3">
+      <div v-if="loading" class="text-center py-12 text-slate-400">Memuat...</div>
+
+      <div v-else-if="items.length === 0" class="rounded-2xl bg-white border border-slate-100 shadow-sm p-12 text-center">
         <GraduationCap class="h-10 w-10 mx-auto mb-3 text-slate-300" />
-        <p>Belum ada data pengajuan tesis</p>
+        <p class="text-slate-500">Belum ada pengajuan</p>
       </div>
-    </div>
 
-    <!-- Priority Queue -->
-    <div v-if="needsVerification > 0 || needsSupervisor > 0" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div v-if="needsVerification > 0" class="rounded-2xl border-2 border-rose-200 bg-rose-50/50 p-5">
-        <div class="flex items-center justify-between mb-2">
-          <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
-            <AlertTriangle class="h-4 w-4 text-rose-600" /> BUTUH VERIFIKASI SEGERA
-          </h3>
-          <span class="text-[10px] font-bold text-rose-600 bg-rose-100 px-2 py-0.5 rounded-full">High Priority</span>
+      <div v-for="item in items" :key="item.studentId" class="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
+        <!-- Student Row (clickable) -->
+        <div @click="toggleExpand(item.studentId)"
+          class="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-slate-50/50 transition-colors">
+          <div class="h-11 w-11 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-sm font-bold shadow-sm shrink-0">
+            {{ getInitials(item.studentName) }}
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-bold text-slate-800">{{ item.studentName }}</p>
+            <p class="text-xs text-slate-500">{{ item.studentNim }} · {{ item.prodiName }}</p>
+          </div>
+          <div class="flex items-center gap-3 shrink-0">
+            <span class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{{ item.proposalCount }} proposal</span>
+            <span :class="['text-[11px] font-semibold px-2 py-0.5 rounded-full', statusConfig[item.latestStatus]?.class || 'bg-slate-100 text-slate-500']">
+              {{ statusConfig[item.latestStatus]?.label || item.latestStatus }}
+            </span>
+            <ChevronDown :class="['h-4 w-4 text-slate-400 transition-transform', expandedStudent === item.studentId ? 'rotate-180' : '']" />
+          </div>
         </div>
-        <p class="text-xs text-slate-600 mb-3">Ada <strong>{{ needsVerification }} mahasiswa</strong> yang telah melengkapi berkas. Harap segera lakukan pengecekan validitas dokumen.</p>
-        <button @click="filterStatus = 'SUBMITTED'; fetchData()" class="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1">
-          Buka Antrian Verifikasi <ChevronRight class="h-3 w-3" />
-        </button>
-      </div>
-      <div v-if="needsSupervisor > 0" class="rounded-2xl border border-slate-200 bg-white p-5">
-        <div class="flex items-center justify-between mb-2">
-          <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
-            <Users class="h-4 w-4 text-amber-600" /> PLOTTING PEMBIMBING TERTUNDA
-          </h3>
-          <span class="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">Standard</span>
+
+        <!-- Expanded: Proposals List -->
+        <div v-if="expandedStudent === item.studentId" class="border-t border-slate-100 bg-slate-50/50 px-5 py-4">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Daftar Proposal ({{ item.proposalCount }})</p>
+
+          <div class="space-y-2">
+            <div v-for="(p, idx) in item.proposals" :key="p.id"
+              :class="['flex items-center gap-4 p-3 rounded-xl border transition-colors',
+                hasApprovedProposal(item) && !['DRAFT', 'SUBMITTED', 'REVISION'].includes(p.status) ? 'bg-emerald-50 border-emerald-200' :
+                hasApprovedProposal(item) ? 'bg-slate-50 border-slate-200 opacity-50' : 'bg-white border-slate-200 hover:border-emerald-200']">
+
+              <!-- Number -->
+              <div class="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 shrink-0">
+                {{ Number(idx) + 1 }}
+              </div>
+
+              <!-- Title -->
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-slate-800 truncate">{{ p.title }}</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">{{ p.type }} · {{ p.submittedAt ? new Date(p.submittedAt).toLocaleDateString('id-ID') : '-' }}</p>
+              </div>
+
+              <!-- Status -->
+              <span :class="['text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0', statusConfig[p.status]?.class || 'bg-slate-100 text-slate-500']">
+                {{ statusConfig[p.status]?.label || p.status }}
+              </span>
+
+              <!-- Action -->
+              <button @click.stop="router.push(`/thesis/${p.id}`)"
+                :class="['inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0',
+                  hasApprovedProposal(item) && ['DRAFT', 'SUBMITTED', 'REVISION'].includes(p.status)
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100']"
+                :disabled="hasApprovedProposal(item) && ['DRAFT', 'SUBMITTED', 'REVISION'].includes(p.status)">
+                <Eye class="h-3 w-3" /> Detail
+              </button>
+            </div>
+          </div>
+
+          <!-- Warning if has approved -->
+          <div v-if="hasApprovedProposal(item)" class="mt-3 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
+            <p class="text-[11px] text-emerald-700 font-medium flex items-center gap-1.5">
+              <CheckCircle2 class="h-3.5 w-3.5" />
+              Mahasiswa ini sudah memiliki proposal yang disetujui. Proposal lain tidak bisa di-approve.
+            </p>
+          </div>
         </div>
-        <p class="text-xs text-slate-600 mb-3"><strong>{{ needsSupervisor }} mahasiswa</strong> telah diverifikasi berkasnya namun belum mendapatkan plot pembimbing utama.</p>
-        <button @click="filterStatus = 'TITLE_APPROVED'; fetchData()" class="text-xs font-semibold text-amber-600 hover:text-amber-700 flex items-center gap-1">
-          Mulai Plotting Dosen <ChevronRight class="h-3 w-3" />
-        </button>
       </div>
     </div>
   </div>
