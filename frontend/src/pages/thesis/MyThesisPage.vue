@@ -30,6 +30,7 @@ const form = ref({
   supervisorId1: '' as string | number,
   supervisorId2: '' as string | number,
   documentUrl: '',
+  plagiarismUrl: '',
 })
 
 const keywordsList = computed(() => {
@@ -38,12 +39,13 @@ const keywordsList = computed(() => {
 
 const formProgress = computed(() => {
   let filled = 0
-  const total = 5
+  const total = 6
   if (form.value.title.length >= 8) filled++
   if (form.value.abstract.length >= 20) filled++
   if (keywordsList.value.length >= 1) filled++
   if (form.value.supervisorId1) filled++
   if (form.value.documentUrl) filled++
+  if (form.value.plagiarismUrl) filled++
   return Math.round((filled / total) * 100)
 })
 
@@ -120,7 +122,7 @@ async function submitProposal() {
     const res = await api.get('/guidance/my-thesis')
     theses.value = res.data || []
     showForm.value = false
-    form.value = { title: '', titleEn: '', abstract: '', type: 'TESIS', keywords: '', concentration: '', supervisorId1: '', supervisorId2: '', documentUrl: '' }
+    form.value = { title: '', titleEn: '', abstract: '', type: 'TESIS', keywords: '', concentration: '', supervisorId1: '', supervisorId2: '', documentUrl: '', plagiarismUrl: '' }
   } catch (e: any) {
     alert(e.response?.data?.message || 'Gagal mengajukan proposal')
   } finally { submitting.value = false }
@@ -155,6 +157,7 @@ const guidelines = [
   { label: 'Kata Kunci', desc: 'Minimal 1 kata kunci penelitian.', done: computed(() => keywordsList.value.length >= 1) },
   { label: 'Dosen Pembimbing', desc: 'Pastikan kuota dosen masih tersedia.', done: computed(() => !!form.value.supervisorId1) },
   { label: 'File PDF Proposal', desc: 'Lampirkan draft proposal bab 1-3.', done: computed(() => !!form.value.documentUrl) },
+  { label: 'Hasil Plagiarisme', desc: 'Upload hasil cek Turnitin (max 25%).', done: computed(() => !!form.value.plagiarismUrl) },
 ]
 </script>
 

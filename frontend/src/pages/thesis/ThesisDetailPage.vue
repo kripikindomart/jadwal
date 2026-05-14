@@ -267,91 +267,48 @@ const statusBadge: Record<string, { label: string; class: string }> = {
           </div>
         </div>
 
-        <!-- Sidang & Penguji -->
+        <!-- Dokumen yang Diupload Mahasiswa -->
         <div class="rounded-2xl bg-white border border-slate-100 shadow-sm p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-              <Calendar class="h-5 w-5 text-emerald-600" /> Sidang & Penguji
-            </h3>
-            <button @click="showExamForm = !showExamForm" class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700">
-              <Calendar class="h-3.5 w-3.5" /> Jadwalkan
-            </button>
-          </div>
-
-          <div v-if="data.exams?.length" class="space-y-4">
-            <div v-for="exam in data.exams" :key="exam.id" class="p-4 border border-slate-200 rounded-xl">
-              <div class="flex items-center justify-between mb-3">
-                <div class="flex items-center gap-2">
-                  <span class="text-xs font-bold text-violet-700 bg-violet-100 px-2.5 py-1 rounded-lg">{{ exam.type }}</span>
-                  <span class="text-sm text-slate-700">{{ exam.date }} · {{ exam.startTime?.slice(0,5) }}–{{ exam.endTime?.slice(0,5) }}</span>
-                  <span class="text-xs text-slate-500">{{ exam.room }}</span>
-                </div>
-                <div class="flex gap-1">
-                  <button v-if="exam.status === 'SCHEDULED'" @click="updateExamResult(exam.id, 'PASSED')" class="px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg">Lulus</button>
-                  <button v-if="exam.status === 'SCHEDULED'" @click="updateExamResult(exam.id, 'REVISION')" class="px-2.5 py-1 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg">Revisi</button>
-                </div>
+          <h3 class="text-base font-bold text-slate-800 flex items-center gap-2 mb-4">
+            <FileText class="h-5 w-5 text-emerald-600" /> Dokumen Lampiran
+          </h3>
+          <div class="space-y-3">
+            <div class="flex items-center gap-3 p-3 rounded-xl border border-slate-200" :class="data.documentUrl ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50'">
+              <div :class="['h-10 w-10 rounded-lg flex items-center justify-center', data.documentUrl ? 'bg-emerald-100' : 'bg-slate-200']">
+                <FileText :class="['h-5 w-5', data.documentUrl ? 'text-emerald-600' : 'text-slate-400']" />
               </div>
-              <div class="space-y-1 ml-1">
-                <div v-for="ex in exam.examiners" :key="ex.id" class="flex items-center justify-between text-xs">
-                  <span class="text-slate-600"><span class="text-slate-400 font-medium">{{ ex.role }}:</span> {{ ex.fullName }}</span>
-                  <button @click="removeExaminer(ex.id)" class="text-slate-400 hover:text-rose-500"><Trash2 class="h-3 w-3" /></button>
-                </div>
-                <button @click="openExaminerForm(exam.id)" class="text-xs text-emerald-600 hover:underline mt-1 font-medium">+ Tambah Penguji</button>
+              <div class="flex-1">
+                <p class="text-sm font-medium text-slate-800">Draft Proposal (PDF)</p>
+                <p class="text-[11px] text-slate-500">{{ data.documentUrl ? 'File tersedia' : 'Belum diupload mahasiswa' }}</p>
+              </div>
+              <div v-if="data.documentUrl" class="flex gap-1.5">
+                <a :href="data.documentUrl" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700">
+                  <Download class="h-3 w-3" /> Unduh
+                </a>
+                <a :href="data.documentUrl" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-50">
+                  <Eye class="h-3 w-3" /> Preview
+                </a>
               </div>
             </div>
-          </div>
-          <p v-else class="text-sm text-slate-400 italic">Belum ada jadwal sidang</p>
 
-          <!-- Exam Form -->
-          <div v-if="showExamForm" class="mt-4 p-4 border border-emerald-200 rounded-xl bg-emerald-50/50 grid grid-cols-2 gap-3">
-            <select v-model="examForm.type" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-              <option value="SEMINAR_PROPOSAL">Seminar Proposal</option>
-              <option value="SEMINAR_HASIL">Seminar Hasil</option>
-              <option value="SIDANG_AKHIR">Sidang Akhir</option>
-            </select>
-            <input v-model="examForm.date" type="date" class="rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-            <input v-model="examForm.startTime" type="time" class="rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-            <input v-model="examForm.endTime" type="time" class="rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-            <select v-model="examForm.roomId" class="col-span-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
-              <option value="">— Ruangan —</option>
-              <option v-for="r in rooms" :key="r.id" :value="r.id">{{ r.name }}</option>
-            </select>
-            <div class="col-span-2 flex gap-2">
-              <button @click="scheduleExam" :disabled="saving" class="px-4 py-2 text-xs font-semibold bg-emerald-600 text-white rounded-lg disabled:opacity-50">Simpan</button>
-              <button @click="showExamForm = false" class="px-3 py-2 text-xs text-slate-500 hover:bg-slate-100 rounded-lg">Batal</button>
-            </div>
-          </div>
-
-          <!-- Examiner Form -->
-          <div v-if="showExaminerForm" class="mt-4 p-4 border border-emerald-200 rounded-xl bg-emerald-50/50 space-y-3">
-            <SearchableSelect v-model="examinerForm.lecturerId" :options="lecturers.map(l => ({ value: l.id, label: l.fullName || l.name }))" placeholder="Cari dosen penguji..." />
-            <select v-model="examinerForm.role" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
-              <option value="KETUA">Ketua Penguji</option>
-              <option value="PENGUJI_1">Penguji 1</option>
-              <option value="PENGUJI_2">Penguji 2</option>
-              <option value="SEKRETARIS">Sekretaris</option>
-            </select>
-            <div class="flex gap-2">
-              <button @click="assignExaminer" :disabled="saving" class="px-4 py-2 text-xs font-semibold bg-emerald-600 text-white rounded-lg disabled:opacity-50">Simpan</button>
-              <button @click="showExaminerForm = false" class="px-3 py-2 text-xs text-slate-500 hover:bg-slate-100 rounded-lg">Batal</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Log Bimbingan -->
-        <div class="rounded-2xl bg-white border border-slate-100 shadow-sm p-6">
-          <h3 class="text-base font-bold text-slate-800 mb-4">Log Bimbingan ({{ data.guidanceCount }}x)</h3>
-          <div v-if="data.guidanceLogs?.length" class="space-y-3">
-            <div v-for="log in data.guidanceLogs" :key="log.id" class="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-              <div class="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700 shrink-0">{{ log.chapter || '#' }}</div>
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-slate-800">{{ log.topic }}</p>
-                <p v-if="log.notes" class="text-xs text-slate-500 mt-0.5">{{ log.notes }}</p>
-                <p class="text-[10px] text-slate-400 mt-1">{{ log.date }} · {{ log.lecturerName }}</p>
+            <div class="flex items-center gap-3 p-3 rounded-xl border border-slate-200" :class="data.plagiarismUrl ? 'bg-blue-50 border-blue-200' : 'bg-slate-50'">
+              <div :class="['h-10 w-10 rounded-lg flex items-center justify-center', data.plagiarismUrl ? 'bg-blue-100' : 'bg-slate-200']">
+                <Shield :class="['h-5 w-5', data.plagiarismUrl ? 'text-blue-600' : 'text-slate-400']" />
+              </div>
+              <div class="flex-1">
+                <p class="text-sm font-medium text-slate-800">Hasil Cek Plagiarisme</p>
+                <p class="text-[11px] text-slate-500">{{ data.plagiarismUrl ? 'File tersedia' : 'Belum diupload mahasiswa' }}</p>
+              </div>
+              <div v-if="data.plagiarismUrl" class="flex gap-1.5">
+                <a :href="data.plagiarismUrl" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700">
+                  <Download class="h-3 w-3" /> Unduh
+                </a>
+                <a :href="data.plagiarismUrl" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-50">
+                  <Eye class="h-3 w-3" /> Preview
+                </a>
               </div>
             </div>
           </div>
-          <p v-else class="text-sm text-slate-400 italic">Belum ada log bimbingan</p>
         </div>
       </div>
 

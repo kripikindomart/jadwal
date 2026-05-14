@@ -282,6 +282,12 @@ export class GuidanceService {
       titleEn: data.titleEn,
       abstract: data.abstract,
       type: data.type || 'TESIS',
+      keywords: data.keywords,
+      concentration: data.concentration,
+      documentUrl: data.documentUrl,
+      plagiarismUrl: (data as any).plagiarismUrl,
+      requestedSupervisorId1: data.supervisorId1,
+      requestedSupervisorId2: data.supervisorId2,
       status: ThesisStatus.SUBMITTED,
       submittedAt: new Date(),
     });

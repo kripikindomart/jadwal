@@ -64,6 +64,24 @@ export class ThesisSubmission {
   @Column({ type: 'timestamptz', nullable: true })
   completedAt: Date;
 
+  @Column({ nullable: true })
+  documentUrl: string;
+
+  @Column({ nullable: true })
+  plagiarismUrl: string;
+
+  @Column({ nullable: true })
+  keywords: string;
+
+  @Column({ nullable: true })
+  concentration: string;
+
+  @Column({ nullable: true })
+  requestedSupervisorId1: number;
+
+  @Column({ nullable: true })
+  requestedSupervisorId2: number;
+
   @CreateDateColumn()
   createdAt: Date;
 
