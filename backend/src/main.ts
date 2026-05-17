@@ -40,13 +40,19 @@ async function bootstrap() {
   console.log('APP_ENV:', process.env.APP_ENV);
   console.log('CORS_ORIGINS:', originsEnv);
 
-  // Guaranteed CORS Middleware
+  // CORS middleware with origin allowlist from CORS_ORIGINS
   app.use((req: any, res: any, next: any) => {
     const origin = req.headers.origin;
+    const isAllowedOrigin =
+      !origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin);
+
+    if (!isAllowedOrigin) {
+      return res.status(403).json({ message: 'CORS origin not allowed' });
+    }
+
     if (origin) {
       res.header('Access-Control-Allow-Origin', origin);
-    } else {
-      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Vary', 'Origin');
     }
     res.header(
       'Access-Control-Allow-Methods',
@@ -56,7 +62,9 @@ async function bootstrap() {
       'Access-Control-Allow-Headers',
       'Content-Type,Accept,Authorization,X-Requested-With',
     );
-    res.header('Access-Control-Allow-Credentials', 'true');
+    if (origin) {
+      res.header('Access-Control-Allow-Credentials', 'true');
+    }
 
     if (req.method === 'OPTIONS') {
       return res.status(204).end();

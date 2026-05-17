@@ -2,10 +2,16 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { RescheduleController } from './reschedule.controller';
 import { RescheduleService } from './reschedule.service';
-import { RescheduleRequest, ClassSchedule } from '../../database/entities';
+import {
+  RescheduleRequest,
+  ClassSchedule,
+  ClassLecturer,
+} from '../../database/entities';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([RescheduleRequest, ClassSchedule])],
+  imports: [
+    TypeOrmModule.forFeature([RescheduleRequest, ClassSchedule, ClassLecturer]),
+  ],
   controllers: [RescheduleController],
   providers: [RescheduleService],
 })

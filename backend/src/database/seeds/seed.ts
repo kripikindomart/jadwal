@@ -92,6 +92,16 @@ export async function seedDatabase(dataSource: DataSource) {
       group: 'Akademik',
     },
 
+    // Kurikulum
+    { name: 'Lihat Kurikulum', slug: 'curriculums.view', group: 'Akademik' },
+    { name: 'Buat Kurikulum', slug: 'curriculums.create', group: 'Akademik' },
+    { name: 'Edit Kurikulum', slug: 'curriculums.update', group: 'Akademik' },
+    { name: 'Hapus Kurikulum', slug: 'curriculums.delete', group: 'Akademik' },
+
+    // Konsentrasi
+    { name: 'Lihat Konsentrasi', slug: 'concentrations.view', group: 'Akademik' },
+    { name: 'Kelola Konsentrasi', slug: 'concentrations.manage', group: 'Akademik' },
+
     // Kelas
     { name: 'Lihat Kelas', slug: 'classes.view', group: 'Akademik' },
     { name: 'Buat Kelas', slug: 'classes.create', group: 'Akademik' },
@@ -128,8 +138,13 @@ export async function seedDatabase(dataSource: DataSource) {
     { name: 'Input Nilai', slug: 'grade.input', group: 'Kelas' },
 
     // Absensi
+    { name: 'Lihat Absensi', slug: 'attendance.view', group: 'Absensi' },
+    { name: 'Kelola Absensi', slug: 'attendance.manage', group: 'Absensi' },
     { name: 'Absensi Staff', slug: 'attendance.staff', group: 'Absensi' },
     { name: 'Absensi Dosen', slug: 'attendance.lecturer', group: 'Absensi' },
+
+    // Audit
+    { name: 'Lihat Audit Log', slug: 'audit.view', group: 'Audit' },
 
     // Laporan
     { name: 'Lihat Laporan', slug: 'report.view', group: 'Laporan' },
@@ -141,6 +156,20 @@ export async function seedDatabase(dataSource: DataSource) {
     // Survei & EDOM
     { name: 'Lihat Survei', slug: 'surveys.view', group: 'Survei' },
     { name: 'Kelola Survei', slug: 'surveys.manage', group: 'Survei' },
+
+    // Bimbingan & Thesis
+    { name: 'Lihat Thesis', slug: 'thesis.view', group: 'Thesis' },
+    { name: 'Kelola Thesis', slug: 'thesis.manage', group: 'Thesis' },
+    { name: 'Kelola Bimbingan', slug: 'guidance.manage', group: 'Thesis' },
+    { name: 'Lihat Bimbingan Mahasiswa', slug: 'guidance.student.view', group: 'Thesis' },
+    { name: 'Kelola Bimbingan Mahasiswa', slug: 'guidance.student.manage', group: 'Thesis' },
+
+    // Layanan Surat
+    { name: 'Lihat Layanan Surat', slug: 'letters.view', group: 'Surat' },
+    { name: 'Kelola Master Surat', slug: 'letters.manage', group: 'Surat' },
+    { name: 'Lihat Pengajuan Surat', slug: 'letters.request.view', group: 'Surat' },
+    { name: 'Kelola Pengajuan Surat', slug: 'letters.request.manage', group: 'Surat' },
+    { name: 'Kelola PIN Mahasiswa', slug: 'letters.pin.manage', group: 'Surat' },
   ];
 
   let created = 0;
@@ -214,6 +243,12 @@ export async function seedDatabase(dataSource: DataSource) {
       'grade_components.create',
       'grade_components.update',
       'grade_components.delete',
+      'curriculums.view',
+      'curriculums.create',
+      'curriculums.update',
+      'curriculums.delete',
+      'concentrations.view',
+      'concentrations.manage',
       'classes.view',
       'classes.create',
       'classes.update',
@@ -221,6 +256,8 @@ export async function seedDatabase(dataSource: DataSource) {
       'schedules.view',
       'schedules.generate',
       'schedules.update',
+      'attendance.view',
+      'attendance.manage',
       'lecturers.view',
       'lecturers.create',
       'lecturers.update',
@@ -232,6 +269,18 @@ export async function seedDatabase(dataSource: DataSource) {
       'schedule.view',
       'class.view',
       'report.view',
+      'surveys.view',
+      'surveys.manage',
+      'thesis.view',
+      'thesis.manage',
+      'guidance.manage',
+      'guidance.student.view',
+      'guidance.student.manage',
+      'letters.view',
+      'letters.manage',
+      'letters.request.view',
+      'letters.request.manage',
+      'letters.pin.manage',
     ].includes(p.slug),
   );
   await roleRepository.save(staff);
@@ -251,6 +300,8 @@ export async function seedDatabase(dataSource: DataSource) {
       'grade.input',
       'attendance.lecturer',
       'students.view',
+      'thesis.view',
+      'guidance.manage',
     ].includes(p.slug),
   );
   await roleRepository.save(dosen);
@@ -259,7 +310,13 @@ export async function seedDatabase(dataSource: DataSource) {
   // Mahasiswa = view only
   const mahasiswa = roles[4];
   mahasiswa.permissions = allPerms.filter((p) =>
-    ['semesters.view', 'schedule.view', 'class.view'].includes(p.slug),
+    [
+      'semesters.view',
+      'schedule.view',
+      'class.view',
+      'guidance.student.view',
+      'guidance.student.manage',
+    ].includes(p.slug),
   );
   await roleRepository.save(mahasiswa);
   console.log(`  ✅ Mahasiswa: ${mahasiswa.permissions.length} permission`);

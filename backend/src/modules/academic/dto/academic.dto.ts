@@ -5,8 +5,10 @@ import {
   IsDateString,
   IsOptional,
   IsNumber,
+  IsIn,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ThesisFlowMode } from '../../../database/entities/prodi.entity';
 
 // --- Semesters ---
 export class CreateSemesterDto {
@@ -59,6 +61,12 @@ export class CreateProdiDto {
   @IsString()
   @IsNotEmpty()
   degree: string;
+
+  @ApiPropertyOptional({ example: 'C', enum: ['A', 'B', 'C'] })
+  @IsOptional()
+  @IsString()
+  @IsIn(['A', 'B', 'C'])
+  thesisFlowMode?: ThesisFlowMode;
 }
 
 export class UpdateProdiDto extends CreateProdiDto {}

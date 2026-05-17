@@ -1,7 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { RescheduleRequest, ClassSchedule } from '../../database/entities';
+import {
+  RescheduleRequest,
+  ClassSchedule,
+  ClassLecturer,
+} from '../../database/entities';
 import { RescheduleStatus } from '../../database/entities/reschedule-request.entity';
 
 @Injectable()
@@ -11,6 +15,8 @@ export class RescheduleService {
     private readonly requestRepo: Repository<RescheduleRequest>,
     @InjectRepository(ClassSchedule)
     private readonly scheduleRepo: Repository<ClassSchedule>,
+    @InjectRepository(ClassLecturer)
+    private readonly classLecturerRepo: Repository<ClassLecturer>,
   ) {}
 
   async createRequest(data: {
@@ -22,6 +28,26 @@ export class RescheduleService {
     newRoomId?: number;
     reason?: string;
   }) {
+    const schedule = await this.scheduleRepo.findOne({
+      where: { id: data.scheduleId },
+      relations: ['classCourse'],
+    });
+    if (!schedule) {
+      throw new NotFoundException('Jadwal tidak ditemukan');
+    }
+
+    const isLecturerAssigned = await this.classLecturerRepo.findOne({
+      where: {
+        classCourseId: schedule.classCourseId,
+        lecturerId: data.requestedBy,
+      },
+    });
+    if (!isLecturerAssigned) {
+      throw new BadRequestException(
+        'Pengaju tidak terdaftar sebagai dosen pada kelas ini',
+      );
+    }
+
     const request = this.requestRepo.create({
       ...data,
       status: RescheduleStatus.PENDING,

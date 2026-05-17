@@ -1,20 +1,25 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '@/lib/api'
-import { useAuthStore } from '@/stores/auth'
 import SearchableSelect from '@/components/ui/SearchableSelect.vue'
 import {
   GraduationCap, FileText, Send, Save, Loader2,
   CheckCircle2, Circle, Upload, X, Plus, Clock,
-  BookOpen, Users, AlertCircle, Shield,
+  Users, AlertCircle, Shield, Pencil, Trash2,
 } from 'lucide-vue-next'
 
-const authStore = useAuthStore()
+const router = useRouter()
+
+const MAX_UPLOAD_MB = Number(import.meta.env.VITE_THESIS_UPLOAD_MAX_MB || 25)
+const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
+
 const loading = ref(true)
 const theses = ref<any[]>([])
 const lecturers = ref<any[]>([])
 const concentrations = ref<any[]>([])
 const showForm = ref(false)
+const editingId = ref<number | null>(null)
 const submitting = ref(false)
 const savingDraft = ref(false)
 const uploading = ref(false)
@@ -54,8 +59,31 @@ const formProgress = computed(() => {
 const wordCount = computed(() => {
   return form.value.abstract.trim().split(/\s+/).filter(Boolean).length
 })
+const canSubmit = computed(() => {
+  return (
+    form.value.title.trim().length >= 8 &&
+    form.value.abstract.trim().length >= 20 &&
+    !!form.value.supervisorId1 &&
+    !!form.value.documentUrl &&
+    !!form.value.plagiarismUrl
+  )
+})
+const submitBlockers = computed(() => {
+  const blockers: string[] = []
+  if (form.value.title.trim().length < 8) blockers.push('Judul minimal 8 karakter')
+  if (form.value.abstract.trim().length < 20) blockers.push('Abstrak minimal 20 karakter')
+  if (!form.value.supervisorId1) blockers.push('Pembimbing utama belum dipilih')
+  if (!form.value.documentUrl) blockers.push('Dokumen proposal belum diupload')
+  if (!form.value.plagiarismUrl) blockers.push('Hasil plagiarisme belum diupload')
+  return blockers
+})
 
 onMounted(async () => {
+  await loadInitialData()
+  loading.value = false
+})
+
+async function loadInitialData() {
   try {
     const [thesisRes, lecRes, concRes] = await Promise.all([
       api.get('/guidance/my-thesis'),
@@ -66,8 +94,12 @@ onMounted(async () => {
     lecturers.value = lecRes.data || []
     concentrations.value = concRes.data || []
   } catch { /* silent */ }
-  finally { loading.value = false }
-})
+}
+
+async function reloadTheses() {
+  const res = await api.get('/guidance/my-thesis')
+  theses.value = res.data || []
+}
 
 async function handleFileSelect(e: Event) {
   const input = e.target as HTMLInputElement
@@ -84,8 +116,8 @@ function handleDrop(e: DragEvent) {
 }
 
 async function uploadFile(file: File) {
-  if (file.size > 5 * 1024 * 1024) {
-    alert('Ukuran file maksimal 5MB')
+  if (file.size > MAX_UPLOAD_BYTES) {
+    alert(`Ukuran file maksimal ${MAX_UPLOAD_MB}MB`)
     return
   }
   if (!file.name.match(/\.(pdf|doc|docx)$/i)) {
@@ -117,8 +149,8 @@ async function handlePlagiarismSelect(e: Event) {
 }
 
 async function uploadPlagiarismFile(file: File) {
-  if (file.size > 5 * 1024 * 1024) {
-    alert('Ukuran file maksimal 5MB')
+  if (file.size > MAX_UPLOAD_BYTES) {
+    alert(`Ukuran file maksimal ${MAX_UPLOAD_MB}MB`)
     return
   }
   if (!file.name.match(/\.pdf$/i)) {
@@ -149,23 +181,89 @@ async function submitProposal() {
   }
   submitting.value = true
   try {
-    await api.post('/guidance/my-thesis/submit', {
+    const payload = {
       ...form.value,
       supervisorId1: form.value.supervisorId1 ? Number(form.value.supervisorId1) : undefined,
       supervisorId2: form.value.supervisorId2 ? Number(form.value.supervisorId2) : undefined,
-    })
-    const res = await api.get('/guidance/my-thesis')
-    theses.value = res.data || []
+    }
+    if (editingId.value) {
+      await api.patch(`/guidance/my-thesis/${editingId.value}`, payload)
+    } else {
+      await api.post('/guidance/my-thesis/submit', payload)
+    }
+    await reloadTheses()
     showForm.value = false
+    editingId.value = null
     form.value = { title: '', titleEn: '', abstract: '', type: 'TESIS', keywords: '', concentration: '', supervisorId1: '', supervisorId2: '', documentUrl: '', plagiarismUrl: '' }
   } catch (e: any) {
-    alert(e.response?.data?.message || 'Gagal mengajukan proposal')
+    alert(e.response?.data?.message || 'Gagal menyimpan proposal')
   } finally { submitting.value = false }
 }
 
 async function saveDraft() {
+  if (!editingId.value) {
+    alert('Draft baru disimpan saat Anda menekan tombol Kirim Proposal')
+    return
+  }
   savingDraft.value = true
-  setTimeout(() => { savingDraft.value = false }, 1000)
+  try {
+    await api.patch(`/guidance/my-thesis/${editingId.value}`, {
+      ...form.value,
+      supervisorId1: form.value.supervisorId1 ? Number(form.value.supervisorId1) : undefined,
+      supervisorId2: form.value.supervisorId2 ? Number(form.value.supervisorId2) : undefined,
+    })
+    await reloadTheses()
+  } catch (e: any) {
+    alert(e.response?.data?.message || 'Gagal menyimpan draft')
+  } finally {
+    savingDraft.value = false
+  }
+}
+
+function isEditableStatus(status: string) {
+  return ['DRAFT', 'SUBMITTED', 'REVISION'].includes(status)
+}
+
+function openNewForm() {
+  editingId.value = null
+  showForm.value = true
+  form.value = { title: '', titleEn: '', abstract: '', type: 'TESIS', keywords: '', concentration: '', supervisorId1: '', supervisorId2: '', documentUrl: '', plagiarismUrl: '' }
+  uploadedFileName.value = ''
+  plagiarismFileName.value = ''
+}
+
+function openEditForm(thesis: any) {
+  editingId.value = thesis.id
+  showForm.value = true
+  form.value = {
+    title: thesis.title || '',
+    titleEn: thesis.titleEn || '',
+    abstract: thesis.abstract || '',
+    type: thesis.type || 'TESIS',
+    keywords: thesis.keywords || '',
+    concentration: thesis.concentration || '',
+    supervisorId1: thesis.requestedSupervisorId1 || '',
+    supervisorId2: thesis.requestedSupervisorId2 || '',
+    documentUrl: thesis.documentUrl || '',
+    plagiarismUrl: thesis.plagiarismUrl || '',
+  }
+  uploadedFileName.value = thesis.documentUrl ? 'Dokumen Proposal' : ''
+  plagiarismFileName.value = thesis.plagiarismUrl ? 'Hasil Plagiarisme' : ''
+}
+
+function closeForm() {
+  showForm.value = false
+  editingId.value = null
+}
+
+async function cancelSubmission(thesis: any) {
+  if (!confirm(`Batalkan pengajuan "${thesis.title}"?`)) return
+  try {
+    await api.delete(`/guidance/my-thesis/${thesis.id}`)
+    await reloadTheses()
+  } catch (e: any) {
+    alert(e.response?.data?.message || 'Gagal membatalkan pengajuan')
+  }
 }
 
 function removeKeyword(kw: string) {
@@ -199,15 +297,12 @@ const guidelines = [
 <template>
   <div>
     <!-- Header -->
-    <div class="mb-6 flex items-center justify-between">
+    <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <p class="text-xs text-emerald-600 font-medium mb-1">Thesis Management › Pengajuan Proposal</p>
+        <p class="text-xs text-emerald-600 font-medium mb-1">Thesis Management > Pengajuan Proposal</p>
         <h1 class="text-2xl font-bold text-slate-900">Pengajuan Proposal Baru</h1>
         <p class="text-sm text-slate-500 mt-1">Lengkapi detail proposal penelitian Anda untuk memulai proses bimbingan.</p>
       </div>
-      <span v-if="showForm" class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full">
-        <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> Draft Auto-Saved
-      </span>
     </div>
 
     <!-- Loading -->
@@ -217,21 +312,55 @@ const guidelines = [
     <div v-else-if="!showForm && theses.length > 0" class="space-y-4">
       <div class="flex items-center justify-between mb-2">
         <h2 class="text-lg font-bold text-slate-800">Riwayat Pengajuan</h2>
-        <button @click="showForm = true" class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm">
+        <button @click="openNewForm" class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm">
           <Plus class="h-4 w-4" /> Ajukan Baru
         </button>
+      </div>
+      <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+        <p class="text-xs font-medium text-blue-800">
+          Proposal dengan status Draft, Diajukan, atau Revisi masih bisa diedit atau dibatalkan.
+        </p>
       </div>
       <div v-for="t in theses" :key="t.id" class="rounded-2xl bg-white border border-slate-100 shadow-sm p-6 hover:shadow-md transition-shadow">
         <div class="flex items-start justify-between gap-4">
           <div class="flex-1">
             <p class="text-base font-bold text-slate-900">{{ t.title }}</p>
             <p v-if="t.titleEn" class="text-sm text-slate-500 italic mt-0.5">{{ t.titleEn }}</p>
-            <p class="text-xs text-slate-400 mt-2">{{ t.type }} · Diajukan {{ t.submittedAt ? new Date(t.submittedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-' }}</p>
+            <p class="text-xs text-slate-400 mt-2">{{ t.type }} - Diajukan {{ t.submittedAt ? new Date(t.submittedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-' }}</p>
           </div>
-          <span :class="['inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold', statusConfig[t.status]?.class || 'bg-slate-100 text-slate-500']">
-            <component :is="statusConfig[t.status]?.icon || Circle" class="h-3.5 w-3.5" />
-            {{ statusConfig[t.status]?.label || t.status }}
-          </span>
+          <div class="flex flex-col items-end gap-2">
+            <span :class="['inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold', statusConfig[t.status]?.class || 'bg-slate-100 text-slate-500']">
+              <component :is="statusConfig[t.status]?.icon || Circle" class="h-3.5 w-3.5" />
+              {{ statusConfig[t.status]?.label || t.status }}
+            </span>
+            <div v-if="isEditableStatus(t.status)" class="flex items-center gap-2">
+              <button
+                @click="router.push(`/my-thesis/${t.id}`)"
+                class="inline-flex items-center gap-1 rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+              >
+                Detail
+              </button>
+              <button
+                @click="openEditForm(t)"
+                class="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                <Pencil class="h-3 w-3" /> Edit
+              </button>
+              <button
+                @click="cancelSubmission(t)"
+                class="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50"
+              >
+                <Trash2 class="h-3 w-3" /> Batalkan
+              </button>
+            </div>
+            <button
+              v-else
+              @click="router.push(`/my-thesis/${t.id}`)"
+              class="inline-flex items-center gap-1 rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+            >
+              Detail
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -243,16 +372,27 @@ const guidelines = [
       </div>
       <h2 class="text-lg font-bold text-slate-800 mb-1">Belum Ada Pengajuan</h2>
       <p class="text-sm text-slate-500 mb-6">Mulai ajukan proposal tugas akhir Anda.</p>
-      <button @click="showForm = true" class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-700 shadow-lg shadow-emerald-200">
+      <button @click="openNewForm" class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-700 shadow-lg shadow-emerald-200">
         <Plus class="h-4 w-4" /> Ajukan Proposal Baru
       </button>
     </div>
 
-    <!-- ═══════════ FORM PENGAJUAN ═══════════ -->
+    <!-- FORM PENGAJUAN -->
     <div v-if="showForm" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
       <!-- LEFT: Form (2 cols) -->
       <div class="lg:col-span-2 space-y-6">
+        <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
+          <p class="text-sm font-semibold text-slate-800">
+            {{ editingId ? 'Edit Pengajuan Proposal' : 'Form Pengajuan Proposal' }}
+          </p>
+          <button
+            @click="closeForm"
+            class="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <X class="h-3.5 w-3.5" /> Tutup
+          </button>
+        </div>
 
         <!-- Detail Proposal -->
         <div class="rounded-2xl bg-white border border-slate-100 shadow-sm p-6">
@@ -284,7 +424,7 @@ const guidelines = [
               <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1.5">Konsentrasi / Peminatan</label>
                 <select v-model="form.concentration" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400">
-                  <option value="">— Pilih Konsentrasi —</option>
+                  <option value="">- Pilih Konsentrasi -</option>
                   <option v-for="c in concentrations" :key="c.id" :value="c.name">{{ c.name }}</option>
                 </select>
               </div>
@@ -341,7 +481,7 @@ const guidelines = [
               <label class="block text-xs font-medium text-slate-600 mb-1.5">Calon Pembimbing Pendamping</label>
               <SearchableSelect
                 v-model="form.supervisorId2"
-                :options="[{ value: '', label: '— Belum dipilih —' }, ...lecturers.filter(l => l.id != form.supervisorId1).map(l => ({ value: l.id, label: l.fullName || l.name }))]"
+                :options="[{ value: '', label: '- Belum dipilih -' }, ...lecturers.filter(l => l.id != form.supervisorId1).map(l => ({ value: l.id, label: l.fullName || l.name }))]"
                 placeholder="Cari NIDN atau Nama Dosen..."
               />
               <div v-if="form.supervisorId2" class="mt-2 p-2.5 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-2">
@@ -394,7 +534,7 @@ const guidelines = [
                   <Upload class="h-6 w-6 text-slate-400" />
                 </div>
                 <p class="text-sm font-medium text-slate-700 mb-1">Tarik & Lepaskan File</p>
-                <p class="text-xs text-slate-400 mb-4">Pastikan file dalam format PDF dengan ukuran maksimal 5MB.</p>
+                <p class="text-xs text-slate-400 mb-4">Pastikan file dalam format PDF dengan ukuran maksimal {{ MAX_UPLOAD_MB }}MB.</p>
                 <button type="button" class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 shadow-sm">
                   Pilih File
                 </button>
@@ -438,7 +578,7 @@ const guidelines = [
                   <Shield class="h-5 w-5 text-blue-400" />
                 </div>
                 <p class="text-sm font-medium text-slate-700 mb-1">Upload Hasil Turnitin / Plagiarisme</p>
-                <p class="text-xs text-slate-400">Format PDF, maksimal 5MB</p>
+                <p class="text-xs text-slate-400">Format PDF, maksimal {{ MAX_UPLOAD_MB }}MB</p>
               </div>
             </div>
             <input ref="plagiarismInput" type="file" accept=".pdf" class="hidden" @change="handlePlagiarismSelect" />
@@ -447,7 +587,7 @@ const guidelines = [
       </div>
 
       <!-- RIGHT: Sidebar (1 col) -->
-      <div class="space-y-5">
+      <div class="space-y-5 lg:sticky lg:top-6 lg:self-start">
 
         <!-- Status Card -->
         <div class="rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-600 p-5 text-white shadow-lg">
@@ -460,16 +600,32 @@ const guidelines = [
             <div class="h-full rounded-full bg-white transition-all duration-500" :style="{ width: formProgress + '%' }"></div>
           </div>
 
-          <button @click="submitProposal" :disabled="submitting || formProgress < 40"
-            class="w-full rounded-xl bg-white text-emerald-700 py-2.5 text-sm font-bold hover:bg-emerald-50 disabled:opacity-50 transition-colors mb-2">
+          <button @click="submitProposal" :disabled="submitting || !canSubmit"
+            class="w-full rounded-xl bg-white text-emerald-700 py-2.5 text-sm font-bold hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mb-2">
             <span v-if="submitting">Mengirim...</span>
-            <span v-else class="flex items-center justify-center gap-2"><Send class="h-4 w-4" /> Kirim Proposal</span>
+            <span v-else class="flex items-center justify-center gap-2">
+              <Send class="h-4 w-4" /> {{ editingId ? 'Simpan Perubahan' : 'Kirim Proposal' }}
+            </span>
           </button>
-          <button @click="saveDraft" :disabled="savingDraft"
-            class="w-full rounded-xl bg-white/20 text-white py-2.5 text-sm font-medium hover:bg-white/30 transition-colors">
+          <button @click="saveDraft" :disabled="savingDraft || !editingId"
+            class="w-full rounded-xl border border-white/40 bg-transparent text-white py-2.5 text-sm font-medium hover:bg-white/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
             <span v-if="savingDraft">Menyimpan...</span>
-            <span v-else class="flex items-center justify-center gap-2"><Save class="h-4 w-4" /> Simpan sebagai Draft</span>
+            <span v-else class="flex items-center justify-center gap-2"><Save class="h-4 w-4" /> Simpan Draft</span>
           </button>
+          <button
+            v-if="editingId"
+            @click="closeForm"
+            class="mt-2 w-full rounded-xl border border-white/40 bg-transparent text-white py-2.5 text-sm font-medium hover:bg-white/15 transition-colors"
+          >
+            Batal Edit
+          </button>
+
+          <div v-if="!canSubmit" class="mt-3 rounded-lg border border-white/25 bg-white/10 p-2.5">
+            <p class="text-[11px] font-semibold text-white mb-1">Lengkapi sebelum kirim:</p>
+            <ul class="space-y-0.5">
+              <li v-for="msg in submitBlockers" :key="msg" class="text-[11px] text-emerald-100">- {{ msg }}</li>
+            </ul>
+          </div>
 
           <p class="text-[10px] text-emerald-200 mt-3 leading-relaxed italic">
             *Dengan mengirimkan proposal, Anda menyetujui syarat dan ketentuan akademik yang berlaku.
@@ -494,11 +650,13 @@ const guidelines = [
           </div>
         </div>
 
-        <!-- Motivational Card -->
-        <div class="rounded-2xl overflow-hidden relative h-40 shadow-sm">
-          <img src="https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&q=80" class="w-full h-full object-cover" />
-          <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent flex items-end p-4">
-            <p class="text-white text-xs italic leading-relaxed">"Penelitian yang baik dimulai dari perencanaan yang matang."</p>
+        <div class="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-4">Alur Proses Mahasiswa</h3>
+          <div class="space-y-2">
+            <div class="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700">1. Isi form dan kirim proposal.</div>
+            <div class="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700">2. Selama status masih Draft/Diajukan/Revisi, proposal bisa diedit atau dibatalkan.</div>
+            <div class="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700">3. Setelah judul disetujui prodi, pengajuan terkunci dan lanjut ke pembimbing.</div>
+            <div class="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700">4. Tahap ujian mengikuti mode alur program studi (A/B/C).</div>
           </div>
         </div>
       </div>

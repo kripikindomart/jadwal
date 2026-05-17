@@ -13,6 +13,9 @@ import { Public } from '../../common/decorators';
 import { GuidanceService } from './guidance.service';
 import { GuidanceStatus } from '../../database/entities/guidance-schedule.entity';
 
+const THESIS_UPLOAD_MAX_MB = Number(process.env.THESIS_UPLOAD_MAX_MB || 25);
+const THESIS_UPLOAD_MAX_BYTES = THESIS_UPLOAD_MAX_MB * 1024 * 1024;
+
 @ApiTags('Guidance / Bimbingan')
 @Controller('api/guidance')
 export class GuidanceController {
@@ -65,7 +68,8 @@ export class GuidanceController {
   // ============ AUTHENTICATED STUDENT ============
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('guidance.student.view')
   @Get('my-requests')
   @ApiOperation({ summary: 'Mahasiswa: list request bimbingan saya' })
   getMyRequests(@Req() req: any) {
@@ -73,7 +77,41 @@ export class GuidanceController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('guidance.student.view')
+  @Get('my-logbook')
+  @ApiOperation({ summary: 'Mahasiswa: list logbook bimbingan saya' })
+  getMyLogbook(@Req() req: any) {
+    return this.guidanceService.getMyLogbook(req.user.id);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('guidance.student.manage')
+  @Post('my-logbook')
+  @ApiOperation({ summary: 'Mahasiswa: buat logbook bimbingan untuk validasi pembimbing' })
+  createMyLogbook(
+    @Req() req: any,
+    @Body() body: {
+      thesisId: number;
+      lecturerId: number;
+      date: string;
+      startTime?: string;
+      endTime?: string;
+      topic: string;
+      notes?: string;
+      studentProgress?: string;
+      nextAction?: string;
+      chapter?: string;
+      attachmentUrl?: string;
+    },
+  ) {
+    return this.guidanceService.createMyLogbook(req.user.id, body);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('guidance.student.manage')
   @Post('request')
   @ApiOperation({ summary: 'Mahasiswa: buat request bimbingan' })
   createRequest(
@@ -92,7 +130,8 @@ export class GuidanceController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('guidance.student.view')
   @Get('my-thesis')
   @ApiOperation({ summary: 'Mahasiswa: lihat data tugas akhir saya (authenticated)' })
   getMyThesisAuth(@Req() req: any) {
@@ -100,15 +139,17 @@ export class GuidanceController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('guidance.student.view')
   @Get('available-lecturers')
   @ApiOperation({ summary: 'Mahasiswa: list dosen yang tersedia sebagai pembimbing' })
-  getAvailableLecturers() {
-    return this.guidanceService.getAvailableLecturers();
+  getAvailableLecturers(@Req() req: any) {
+    return this.guidanceService.getAvailableLecturers(req.user.id);
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('guidance.student.view')
   @Get('available-concentrations')
   @ApiOperation({ summary: 'Mahasiswa: list konsentrasi yang tersedia' })
   getAvailableConcentrations() {
@@ -116,7 +157,8 @@ export class GuidanceController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('guidance.student.manage')
   @Post('my-thesis/submit')
   @ApiOperation({ summary: 'Mahasiswa: ajukan proposal tugas akhir (authenticated)' })
   submitMyThesis(
@@ -137,7 +179,8 @@ export class GuidanceController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('guidance.student.manage')
   @Patch('my-thesis/:id')
   @ApiOperation({ summary: 'Mahasiswa: update draft proposal' })
   updateMyThesis(
@@ -149,9 +192,27 @@ export class GuidanceController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('guidance.student.manage')
+  @Delete('my-thesis/:id')
+  @ApiOperation({ summary: 'Mahasiswa: batalkan pengajuan proposal sebelum direview' })
+  cancelMyThesis(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.guidanceService.cancelThesisSubmission(req.user.id, id);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('guidance.student.manage')
   @Post('my-thesis/upload')
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: THESIS_UPLOAD_MAX_BYTES },
+    }),
+  )
   @ApiOperation({ summary: 'Mahasiswa: upload file proposal (PDF)' })
   async uploadThesisFile(
     @Req() req: any,
@@ -162,6 +223,24 @@ export class GuidanceController {
   }
 
   // ============ ADMIN ============
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('guidance.manage')
+  @Get('logbook')
+  @ApiOperation({ summary: 'Reviewer: list logbook mahasiswa untuk verifikasi' })
+  getLogbookForReview(
+    @Req() req: any,
+    @Query('status') status?: 'PENDING' | 'APPROVED' | 'REJECTED',
+  ) {
+    const roles = (req.user?.roles || []).map((r: any) => r.slug);
+    const isDosenOnly = roles.includes('dosen') && !roles.includes('staff') && !roles.includes('admin') && !roles.includes('superadmin');
+
+    return this.guidanceService.getLogbookForReview({
+      lecturerId: isDosenOnly ? req.user.id : undefined,
+      status,
+    });
+  }
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -221,6 +300,32 @@ export class GuidanceController {
   @ApiOperation({ summary: 'Admin: hapus jadwal bimbingan' })
   delete(@Param('id', ParseIntPipe) id: number) {
     return this.guidanceService.delete(id);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('guidance.manage')
+  @Patch('logbook/:id/validate')
+  @ApiOperation({ summary: 'Validasi logbook bimbingan (approve/reject)' })
+  validateLogbook(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { status: 'APPROVED' | 'REJECTED'; reviewerNotes?: string; nextSteps?: string },
+  ) {
+    return this.guidanceService.validateLogbook(id, body.status, body.reviewerNotes, body.nextSteps);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('guidance.manage')
+  @Get('logbook/student/:studentId')
+  @ApiOperation({ summary: 'Get all logbooks for a specific student' })
+  getStudentLogbooks(
+    @Param('studentId', ParseIntPipe) studentId: number,
+    @Req() req: any,
+  ) {
+    const roles = (req.user?.roles || []).map((r: any) => r.slug);
+    const isDosenOnly = roles.includes('dosen') && !roles.includes('staff') && !roles.includes('admin') && !roles.includes('superadmin');
+    return this.guidanceService.getStudentLogbooks(studentId, isDosenOnly ? req.user.id : undefined);
   }
 
   // ============ DISPLAY TV ============

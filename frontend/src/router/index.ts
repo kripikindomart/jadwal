@@ -303,7 +303,13 @@ const router = createRouter({
     {
       path: "/my-guidance",
       name: "my-guidance",
-      component: () => import("@/pages/student-portal/StudentPortalPage.vue"),
+      component: () => import("@/pages/guidance/MyGuidancePage.vue"),
+      meta: { layout: "admin" },
+    },
+    {
+      path: "/my-thesis/:id",
+      name: "my-thesis.detail",
+      component: () => import("@/pages/thesis/MyThesisDetailPage.vue"),
       meta: { layout: "admin" },
     },
 

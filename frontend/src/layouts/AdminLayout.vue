@@ -168,7 +168,7 @@ const menuItems = computed(() => {
       icon: GraduationCap,
       children: [
         { label: 'Pengajuan & Status', to: '/my-thesis', icon: GraduationCap },
-        { label: 'Request Bimbingan', to: '/my-guidance', icon: Calendar },
+        { label: 'Proses Bimbingan', to: '/my-guidance', icon: Calendar },
       ]
     })
     items.push({ label: 'Survei Saya', icon: ClipboardList, to: '/surveys/my-pending' })
@@ -180,6 +180,16 @@ const menuItems = computed(() => {
   // DOSEN MENU
   // ═══════════════════════════════════════════
   if (isDosen && !isStaff) {
+    const dosenThesisChildren: any[] = []
+    if (authStore.hasPermission('guidance.manage') || authStore.hasPermission('guidance.view') || isDosen) {
+      dosenThesisChildren.push({ label: 'Bimbingan', to: '/guidance', icon: Calendar })
+    }
+    if (authStore.hasPermission('thesis.view')) {
+      dosenThesisChildren.push({ label: 'Monitoring Progress', to: '/thesis/monitoring', icon: LayoutDashboard })
+    }
+    if (dosenThesisChildren.length > 0) {
+      items.push({ label: 'Tugas Akhir', icon: GraduationCap, children: dosenThesisChildren })
+    }
     items.push({ label: 'Survei Saya', icon: ClipboardList, to: '/surveys/my-pending' })
     return items
   }
@@ -227,7 +237,7 @@ const menuItems = computed(() => {
   const thesisChildren: any[] = []
   if (authStore.hasPermission('thesis.view')) thesisChildren.push({ label: 'Data Tugas Akhir', to: '/thesis', icon: GraduationCap })
   if (authStore.hasPermission('thesis.view')) thesisChildren.push({ label: 'Monitoring Progress', to: '/thesis/monitoring', icon: LayoutDashboard })
-  if (authStore.hasPermission('guidance.manage')) thesisChildren.push({ label: 'Jadwal Bimbingan', to: '/guidance', icon: Calendar })
+  if (authStore.hasPermission('guidance.manage')) thesisChildren.push({ label: 'Bimbingan (Request & Langsung)', to: '/guidance', icon: Calendar })
 
   if (thesisChildren.length > 0) {
     items.push({ label: 'Tugas Akhir', icon: GraduationCap, children: thesisChildren })

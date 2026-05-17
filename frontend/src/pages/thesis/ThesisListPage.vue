@@ -141,6 +141,9 @@ function hasApprovedProposal(item: any) {
             <p class="text-xs text-slate-500">{{ item.studentNim }} · {{ item.prodiName }}</p>
           </div>
           <div class="flex items-center gap-3 shrink-0">
+            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+              Mode {{ item.latestFlowMode || 'C' }}
+            </span>
             <span class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{{ item.proposalCount }} proposal</span>
             <span :class="['text-[11px] font-semibold px-2 py-0.5 rounded-full', statusConfig[item.latestStatus]?.class || 'bg-slate-100 text-slate-500']">
               {{ statusConfig[item.latestStatus]?.label || item.latestStatus }}
@@ -167,7 +170,7 @@ function hasApprovedProposal(item: any) {
               <!-- Title -->
               <div class="flex-1 min-w-0">
                 <p class="text-sm font-medium text-slate-800 truncate">{{ p.title }}</p>
-                <p class="text-[11px] text-slate-400 mt-0.5">{{ p.type }} · {{ p.submittedAt ? new Date(p.submittedAt).toLocaleDateString('id-ID') : '-' }}</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">{{ p.type }} · Mode {{ p.flowMode || 'C' }} · {{ p.submittedAt ? new Date(p.submittedAt).toLocaleDateString('id-ID') : '-' }}</p>
               </div>
 
               <!-- Status -->
@@ -199,3 +202,4 @@ function hasApprovedProposal(item: any) {
     </div>
   </div>
 </template>
+

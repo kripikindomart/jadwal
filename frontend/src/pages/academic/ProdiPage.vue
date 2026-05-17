@@ -32,6 +32,7 @@ const columns: Column[] = [
   { key: 'code', label: 'Kode', sortable: true },
   { key: 'name', label: 'Nama Program Studi', sortable: true },
   { key: 'degree', label: 'Jenjang', sortable: true },
+  { key: 'thesisFlowMode', label: 'Mode Alur Tesis', sortable: true },
 ]
 
 // Modal Form State
@@ -41,7 +42,8 @@ const editingId = ref<number | null>(null)
 const form = ref({
   code: '',
   name: '',
-  degree: 'S2'
+  degree: 'S2',
+  thesisFlowMode: 'C',
 })
 
 async function fetchData(p = page.value) {
@@ -86,7 +88,7 @@ function handleTabChange(tab: string) {
 // CRUD Actions
 function openAddModal() {
   editingId.value = null
-  form.value = { code: '', name: '', degree: 'S2' }
+  form.value = { code: '', name: '', degree: 'S2', thesisFlowMode: 'C' }
   isModalOpen.value = true
 }
 
@@ -95,7 +97,8 @@ function openEditModal(item: any) {
   form.value = {
     code: item.code,
     name: item.name,
-    degree: item.degree
+    degree: item.degree,
+    thesisFlowMode: item.thesisFlowMode || 'C',
   }
   isModalOpen.value = true
 }
@@ -264,6 +267,11 @@ async function performBulkAction(action: string) {
           {{ value }}
         </span>
       </template>
+      <template #cell(thesisFlowMode)="{ value }">
+        <span class="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10">
+          Mode {{ value || 'C' }}
+        </span>
+      </template>
 
       <!-- Actions Slot -->
       <template #actions="{ item }">
@@ -343,6 +351,18 @@ async function performBulkAction(action: string) {
           >
             <option value="S2">S2 (Magister)</option>
             <option value="S3">S3 (Doktor)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Mode Alur Tesis</label>
+          <select
+            v-model="form.thesisFlowMode"
+            required
+            class="w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+          >
+            <option value="A">A - Proposal -> Pembimbing -> Seminar Hasil -> Sidang Akhir</option>
+            <option value="B">B - Proposal -> Pembimbing -> Seminar Proposal -> Sidang Akhir</option>
+            <option value="C">C - Proposal -> Pembimbing -> Seminar Proposal -> Seminar Hasil -> Sidang Akhir</option>
           </select>
         </div>
       </div>

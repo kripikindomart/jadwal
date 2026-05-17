@@ -7,9 +7,13 @@ import {
   ThesisExamSchedule,
   ThesisExaminer,
   GuidanceLog,
+  Prodi,
 } from '../../database/entities';
 import { ThesisStatus } from '../../database/entities/thesis-submission.entity';
 import { ExamStatus } from '../../database/entities/thesis-exam-schedule.entity';
+import { ThesisFlowMode } from '../../database/entities/prodi.entity';
+
+type AllowedExamType = 'SEMINAR_PROPOSAL' | 'SEMINAR_HASIL' | 'SIDANG_AKHIR';
 
 @Injectable()
 export class ThesisService {
@@ -24,11 +28,112 @@ export class ThesisService {
     private readonly examinerRepo: Repository<ThesisExaminer>,
     @InjectRepository(GuidanceLog)
     private readonly logRepo: Repository<GuidanceLog>,
+    @InjectRepository(Prodi)
+    private readonly prodiRepo: Repository<Prodi>,
   ) {}
+
+  private normalizeFlowMode(mode?: string | null): ThesisFlowMode {
+    if (mode === ThesisFlowMode.A) return ThesisFlowMode.A;
+    if (mode === ThesisFlowMode.B) return ThesisFlowMode.B;
+    return ThesisFlowMode.C;
+  }
+
+  private async getFlowModeByProdiId(prodiId: number): Promise<ThesisFlowMode> {
+    const prodi = await this.prodiRepo.findOne({
+      where: { id: prodiId },
+      select: ['id', 'thesisFlowMode'],
+    });
+    return this.normalizeFlowMode(prodi?.thesisFlowMode);
+  }
+
+  private getAllowedExamTypes(mode: ThesisFlowMode): AllowedExamType[] {
+    if (mode === ThesisFlowMode.A) return ['SEMINAR_HASIL', 'SIDANG_AKHIR'];
+    if (mode === ThesisFlowMode.B) return ['SEMINAR_PROPOSAL', 'SIDANG_AKHIR'];
+    return ['SEMINAR_PROPOSAL', 'SEMINAR_HASIL', 'SIDANG_AKHIR'];
+  }
+
+  private getNextExamType(
+    mode: ThesisFlowMode,
+    status: ThesisStatus,
+  ): AllowedExamType | null {
+    if (mode === ThesisFlowMode.A) {
+      if (
+        [
+          ThesisStatus.SUPERVISOR_ASSIGNED,
+          ThesisStatus.THESIS_GUIDANCE,
+          ThesisStatus.REVISION_APPROVED,
+        ].includes(status)
+      ) {
+        return 'SEMINAR_HASIL';
+      }
+      if (status === ThesisStatus.RESULT_PASSED) return 'SIDANG_AKHIR';
+      return null;
+    }
+
+    if (mode === ThesisFlowMode.B) {
+      if (
+        [
+          ThesisStatus.SUPERVISOR_ASSIGNED,
+          ThesisStatus.PROPOSAL_GUIDANCE,
+          ThesisStatus.REVISION_APPROVED,
+        ].includes(status)
+      ) {
+        return 'SEMINAR_PROPOSAL';
+      }
+      if (status === ThesisStatus.PROPOSAL_PASSED) return 'SIDANG_AKHIR';
+      return null;
+    }
+
+    if (
+      [
+        ThesisStatus.SUPERVISOR_ASSIGNED,
+        ThesisStatus.PROPOSAL_GUIDANCE,
+        ThesisStatus.REVISION_APPROVED,
+      ].includes(status)
+    ) {
+      return 'SEMINAR_PROPOSAL';
+    }
+    if (status === ThesisStatus.PROPOSAL_PASSED) return 'SEMINAR_HASIL';
+    if (status === ThesisStatus.RESULT_PASSED) return 'SIDANG_AKHIR';
+    return null;
+  }
+
+  private getFlowStatusHint(mode: ThesisFlowMode): ThesisStatus {
+    return mode === ThesisFlowMode.A
+      ? ThesisStatus.THESIS_GUIDANCE
+      : ThesisStatus.PROPOSAL_GUIDANCE;
+  }
+
+  private getAllowedActions(
+    mode: ThesisFlowMode,
+    status: ThesisStatus,
+  ): string[] {
+    const actions: string[] = [];
+    if ([ThesisStatus.TITLE_APPROVED, ThesisStatus.SUPERVISOR_ASSIGNED].includes(status)) {
+      actions.push('START_GUIDANCE');
+    }
+    if (status === ThesisStatus.PROPOSAL_PASSED && mode === ThesisFlowMode.C) {
+      actions.push('MOVE_TO_THESIS_GUIDANCE');
+    }
+    if (status === ThesisStatus.REVISION) {
+      actions.push('APPROVE_REVISION');
+    }
+    if (status === ThesisStatus.FINAL_EXAM_SCHEDULED) {
+      actions.push('MARK_COMPLETED');
+    }
+    return actions;
+  }
+
+  private getExamTypeLabel(type: string): string {
+    if (type === 'SEMINAR_PROPOSAL') return 'Seminar Proposal';
+    if (type === 'SEMINAR_HASIL') return 'Seminar Hasil';
+    if (type === 'SIDANG_AKHIR') return 'Sidang Akhir';
+    return type;
+  }
 
   // ============ THESIS CRUD ============
 
-  async findAll(filters: { prodiId?: number; status?: string; search?: string; page?: number; limit?: number }) {
+  async findAll(filters: { prodiId?: number | number[]; status?: string; search?: string; page?: number; limit?: number }) {
     const { prodiId, status, search, page = 1, limit = 20 } = filters;
 
     let query = this.thesisRepo
@@ -37,7 +142,12 @@ export class ThesisService {
       .leftJoinAndSelect('student.studentProfile', 'sp')
       .leftJoinAndSelect('t.prodi', 'prodi');
 
-    if (prodiId) query = query.andWhere('t.prodiId = :prodiId', { prodiId });
+    if (Array.isArray(prodiId)) {
+      if (prodiId.length === 0) return { data: [], total: 0, page, limit };
+      query = query.andWhere('t.prodiId IN (:...prodiIds)', { prodiIds: prodiId });
+    } else if (typeof prodiId === 'number') {
+      query = query.andWhere('t.prodiId = :prodiId', { prodiId });
+    }
     if (status) query = query.andWhere('t.status = :status', { status });
     if (search) query = query.andWhere('(t.title ILIKE :search OR student.name ILIKE :search)', { search: `%${search}%` });
 
@@ -64,6 +174,7 @@ export class ThesisService {
         type: t.type,
         status: t.status,
         submittedAt: t.submittedAt,
+        flowMode: this.normalizeFlowMode(t.prodi?.thesisFlowMode),
       });
     }
 
@@ -80,6 +191,7 @@ export class ThesisService {
         proposalCount: g.proposals.length,
         latestStatus: g.proposals[0]?.status || '-',
         latestTitle: g.proposals[0]?.title || '-',
+        latestFlowMode: g.proposals[0]?.flowMode || ThesisFlowMode.C,
         proposals: g.proposals,
       })),
       total,
@@ -174,11 +286,180 @@ export class ThesisService {
     };
   }
 
+  async getThesisProdiId(id: number): Promise<number | null> {
+    const thesis = await this.thesisRepo.findOne({
+      where: { id },
+      select: ['id', 'prodiId'],
+    });
+    return thesis?.prodiId ?? null;
+  }
+
+  async getFlowInfo(id: number) {
+    const thesis = await this.thesisRepo.findOne({ where: { id } });
+    if (!thesis) throw new NotFoundException('Tugas akhir tidak ditemukan');
+
+    const flowMode = await this.getFlowModeByProdiId(thesis.prodiId);
+    const allowedExamTypes = this.getAllowedExamTypes(flowMode);
+    const nextExamType = this.getNextExamType(flowMode, thesis.status);
+
+    const exams = await this.examRepo.find({
+      where: { thesisId: id },
+      order: { date: 'ASC', startTime: 'ASC' },
+    });
+
+    return {
+      thesisId: thesis.id,
+      currentStatus: thesis.status,
+      flowMode,
+      allowedExamTypes,
+      nextExamType,
+      allowedActions: this.getAllowedActions(flowMode, thesis.status),
+      exams: exams.map((e) => ({
+        id: e.id,
+        type: e.type,
+        status: e.status,
+        date: e.date,
+      })),
+    };
+  }
+
+  async getHistory(id: number) {
+    const thesis = await this.thesisRepo.findOne({
+      where: { id },
+      relations: ['prodi'],
+    });
+    if (!thesis) throw new NotFoundException('Tugas akhir tidak ditemukan');
+
+    const supervisors = await this.supervisorRepo.find({
+      where: { thesisId: id },
+      relations: ['lecturer'],
+      order: { assignedAt: 'ASC' },
+    });
+
+    const exams = await this.examRepo.find({
+      where: { thesisId: id },
+      order: { date: 'ASC', startTime: 'ASC' },
+    });
+
+    const logs = await this.logRepo.find({
+      where: { thesisId: id },
+      relations: ['lecturer'],
+      order: { date: 'ASC', createdAt: 'ASC' },
+    });
+
+    const timeline: Array<{
+      timestamp: string;
+      type: string;
+      title: string;
+      description?: string;
+      meta?: Record<string, any>;
+    }> = [];
+
+    timeline.push({
+      timestamp: thesis.createdAt.toISOString(),
+      type: 'THESIS_CREATED',
+      title: 'Pengajuan proposal dibuat',
+      description: thesis.title,
+    });
+
+    if (thesis.submittedAt) {
+      timeline.push({
+        timestamp: thesis.submittedAt.toISOString(),
+        type: 'THESIS_SUBMITTED',
+        title: 'Proposal diajukan',
+      });
+    }
+
+    if (thesis.approvedAt) {
+      timeline.push({
+        timestamp: thesis.approvedAt.toISOString(),
+        type: 'TITLE_APPROVED',
+        title: 'Judul disetujui',
+      });
+    }
+
+    for (const supervisor of supervisors) {
+      timeline.push({
+        timestamp: supervisor.assignedAt.toISOString(),
+        type: 'SUPERVISOR_ASSIGNED',
+        title: `Pembimbing ditetapkan (${supervisor.role})`,
+        description: supervisor.lecturer?.name || '-',
+        meta: {
+          role: supervisor.role,
+          lecturerId: supervisor.lecturerId,
+          skNumber: supervisor.skNumber,
+        },
+      });
+    }
+
+    for (const log of logs) {
+      timeline.push({
+        timestamp: log.createdAt.toISOString(),
+        type: 'GUIDANCE_LOG',
+        title: 'Bimbingan tercatat',
+        description: log.topic,
+        meta: {
+          guidanceDate: log.date,
+          lecturerName: log.lecturer?.name || '-',
+          chapter: log.chapter,
+          status: log.status,
+        },
+      });
+    }
+
+    for (const exam of exams) {
+      timeline.push({
+        timestamp: exam.createdAt.toISOString(),
+        type: 'EXAM_SCHEDULED',
+        title: `${this.getExamTypeLabel(exam.type)} dijadwalkan`,
+        meta: {
+          examType: exam.type,
+          examDate: exam.date,
+          startTime: exam.startTime,
+          endTime: exam.endTime,
+        },
+      });
+
+      if (exam.status !== ExamStatus.SCHEDULED) {
+        timeline.push({
+          timestamp: exam.updatedAt.toISOString(),
+          type: 'EXAM_RESULT',
+          title: `Hasil ${this.getExamTypeLabel(exam.type)}: ${exam.status}`,
+          description: exam.result || undefined,
+          meta: {
+            examType: exam.type,
+            status: exam.status,
+            score: exam.score,
+            revisionDeadline: exam.revisionDeadline,
+          },
+        });
+      }
+    }
+
+    if (thesis.completedAt) {
+      timeline.push({
+        timestamp: thesis.completedAt.toISOString(),
+        type: 'THESIS_COMPLETED',
+        title: 'Tugas akhir selesai',
+      });
+    }
+
+    timeline.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+
+    return {
+      thesisId: thesis.id,
+      flowMode: this.normalizeFlowMode(thesis.prodi?.thesisFlowMode),
+      currentStatus: thesis.status,
+      timeline,
+    };
+  }
+
   // ============ KAPRODI: MAPPING PEMBIMBING ============
 
   async assignSupervisor(thesisId: number, data: { lecturerId: number; role: string; skNumber?: string }) {
     const thesis = await this.thesisRepo.findOne({ where: { id: thesisId } });
     if (!thesis) throw new NotFoundException('Tugas akhir tidak ditemukan');
+    const flowMode = await this.getFlowModeByProdiId(thesis.prodiId);
 
     // Check if role already assigned
     const existing = await this.supervisorRepo.findOne({
@@ -204,6 +485,8 @@ export class ThesisService {
     const count = await this.supervisorRepo.count({ where: { thesisId } });
     if (count >= 1 && thesis.status === ThesisStatus.TITLE_APPROVED) {
       thesis.status = ThesisStatus.SUPERVISOR_ASSIGNED;
+      // Auto move to first guidance stage based on prodi flow mode.
+      thesis.status = this.getFlowStatusHint(flowMode);
       await this.thesisRepo.save(thesis);
     }
 
@@ -226,6 +509,36 @@ export class ThesisService {
   }) {
     const thesis = await this.thesisRepo.findOne({ where: { id: thesisId } });
     if (!thesis) throw new NotFoundException('Tugas akhir tidak ditemukan');
+    const flowMode = await this.getFlowModeByProdiId(thesis.prodiId);
+
+    const examType = data.type as AllowedExamType;
+    const allowedExamTypes = this.getAllowedExamTypes(flowMode);
+    if (!allowedExamTypes.includes(examType)) {
+      throw new BadRequestException(
+        `Mode prodi ${flowMode} tidak mengizinkan ujian ${data.type}`,
+      );
+    }
+
+    const nextExamType = this.getNextExamType(flowMode, thesis.status);
+    if (!nextExamType) {
+      throw new BadRequestException(
+        `Status saat ini (${thesis.status}) belum memenuhi syarat penjadwalan ujian`,
+      );
+    }
+    if (nextExamType !== examType) {
+      throw new BadRequestException(
+        `Urutan ujian tidak valid. Ujian berikutnya yang diizinkan: ${nextExamType}`,
+      );
+    }
+
+    const existingExam = await this.examRepo.findOne({
+      where: { thesisId, type: examType },
+    });
+    if (existingExam) {
+      throw new BadRequestException(
+        `Ujian ${examType} sudah pernah dijadwalkan untuk tugas akhir ini`,
+      );
+    }
 
     const exam = this.examRepo.create({
       thesisId,
@@ -243,6 +556,12 @@ export class ThesisService {
       thesis.status = ThesisStatus.PROPOSAL_EXAM_SCHEDULED;
     } else if (data.type === 'SEMINAR_HASIL' && thesis.status === ThesisStatus.THESIS_GUIDANCE) {
       thesis.status = ThesisStatus.RESULT_EXAM_SCHEDULED;
+    } else if (data.type === 'SEMINAR_HASIL' && thesis.status === ThesisStatus.PROPOSAL_PASSED) {
+      thesis.status = ThesisStatus.RESULT_EXAM_SCHEDULED;
+    } else if (data.type === 'SEMINAR_HASIL' && thesis.status === ThesisStatus.REVISION_APPROVED) {
+      thesis.status = ThesisStatus.RESULT_EXAM_SCHEDULED;
+    } else if (data.type === 'SEMINAR_PROPOSAL' && thesis.status === ThesisStatus.REVISION_APPROVED) {
+      thesis.status = ThesisStatus.PROPOSAL_EXAM_SCHEDULED;
     } else if (data.type === 'SIDANG_AKHIR') {
       thesis.status = ThesisStatus.FINAL_EXAM_SCHEDULED;
     }
@@ -279,10 +598,11 @@ export class ThesisService {
   }) {
     const exam = await this.examRepo.findOne({ where: { id: examId }, relations: ['thesis'] });
     if (!exam) throw new NotFoundException('Jadwal sidang tidak ditemukan');
+    const flowMode = await this.getFlowModeByProdiId(exam.thesis.prodiId);
 
     exam.status = data.status;
     if (data.result) exam.result = data.result;
-    if (data.score) exam.score = data.score;
+    if (data.score !== undefined) exam.score = data.score;
     if (data.revisionDeadline) exam.revisionDeadline = data.revisionDeadline;
     if (data.revisionNotes) exam.revisionNotes = data.revisionNotes;
     await this.examRepo.save(exam);
@@ -298,6 +618,17 @@ export class ThesisService {
       }
     } else if (data.status === ExamStatus.REVISION) {
       thesis.status = ThesisStatus.REVISION;
+    } else if (data.status === ExamStatus.FAILED) {
+      if (exam.type === 'SEMINAR_PROPOSAL') {
+        thesis.status = ThesisStatus.PROPOSAL_GUIDANCE;
+      } else if (exam.type === 'SEMINAR_HASIL') {
+        thesis.status =
+          flowMode === ThesisFlowMode.A
+            ? ThesisStatus.THESIS_GUIDANCE
+            : ThesisStatus.THESIS_GUIDANCE;
+      } else if (exam.type === 'SIDANG_AKHIR') {
+        thesis.status = ThesisStatus.THESIS_GUIDANCE;
+      }
     }
     await this.thesisRepo.save(thesis);
 
@@ -306,9 +637,112 @@ export class ThesisService {
 
   // ============ STATUS UPDATE ============
 
+  async applyTransition(
+    id: number,
+    action:
+      | 'START_GUIDANCE'
+      | 'MOVE_TO_THESIS_GUIDANCE'
+      | 'APPROVE_REVISION'
+      | 'MARK_COMPLETED',
+  ) {
+    const thesis = await this.thesisRepo.findOne({ where: { id } });
+    if (!thesis) throw new NotFoundException('Tugas akhir tidak ditemukan');
+    const flowMode = await this.getFlowModeByProdiId(thesis.prodiId);
+
+    if (action === 'START_GUIDANCE') {
+      if (
+        ![ThesisStatus.TITLE_APPROVED, ThesisStatus.SUPERVISOR_ASSIGNED].includes(
+          thesis.status,
+        )
+      ) {
+        throw new BadRequestException(
+          `Status ${thesis.status} tidak bisa pindah ke tahap bimbingan`,
+        );
+      }
+      thesis.status = this.getFlowStatusHint(flowMode);
+    } else if (action === 'MOVE_TO_THESIS_GUIDANCE') {
+      if (thesis.status !== ThesisStatus.PROPOSAL_PASSED) {
+        throw new BadRequestException(
+          `Status ${thesis.status} tidak bisa dipindah ke bimbingan tesis`,
+        );
+      }
+      thesis.status = ThesisStatus.THESIS_GUIDANCE;
+    } else if (action === 'APPROVE_REVISION') {
+      if (thesis.status !== ThesisStatus.REVISION) {
+        throw new BadRequestException(
+          `Status ${thesis.status} tidak berada di tahap revisi`,
+        );
+      }
+      thesis.status = ThesisStatus.REVISION_APPROVED;
+    } else if (action === 'MARK_COMPLETED') {
+      if (thesis.status !== ThesisStatus.FINAL_EXAM_SCHEDULED) {
+        throw new BadRequestException(
+          `Status ${thesis.status} belum siap ditutup`,
+        );
+      }
+      thesis.status = ThesisStatus.COMPLETED;
+      thesis.completedAt = new Date();
+    }
+
+    await this.thesisRepo.save(thesis);
+    return { message: 'Transisi status berhasil', status: thesis.status };
+  }
+
   async updateStatus(id: number, status: ThesisStatus) {
     const thesis = await this.thesisRepo.findOne({ where: { id } });
     if (!thesis) throw new NotFoundException('Tugas akhir tidak ditemukan');
+    const flowMode = await this.getFlowModeByProdiId(thesis.prodiId);
+
+    const allowedManualStatusesByMode: Record<ThesisFlowMode, ThesisStatus[]> = {
+      [ThesisFlowMode.A]: [
+        ThesisStatus.DRAFT,
+        ThesisStatus.SUBMITTED,
+        ThesisStatus.TITLE_APPROVED,
+        ThesisStatus.SUPERVISOR_ASSIGNED,
+        ThesisStatus.THESIS_GUIDANCE,
+        ThesisStatus.RESULT_EXAM_SCHEDULED,
+        ThesisStatus.RESULT_PASSED,
+        ThesisStatus.FINAL_EXAM_SCHEDULED,
+        ThesisStatus.REVISION,
+        ThesisStatus.REVISION_APPROVED,
+        ThesisStatus.COMPLETED,
+      ],
+      [ThesisFlowMode.B]: [
+        ThesisStatus.DRAFT,
+        ThesisStatus.SUBMITTED,
+        ThesisStatus.TITLE_APPROVED,
+        ThesisStatus.SUPERVISOR_ASSIGNED,
+        ThesisStatus.PROPOSAL_GUIDANCE,
+        ThesisStatus.PROPOSAL_EXAM_SCHEDULED,
+        ThesisStatus.PROPOSAL_PASSED,
+        ThesisStatus.FINAL_EXAM_SCHEDULED,
+        ThesisStatus.REVISION,
+        ThesisStatus.REVISION_APPROVED,
+        ThesisStatus.COMPLETED,
+      ],
+      [ThesisFlowMode.C]: [
+        ThesisStatus.DRAFT,
+        ThesisStatus.SUBMITTED,
+        ThesisStatus.TITLE_APPROVED,
+        ThesisStatus.SUPERVISOR_ASSIGNED,
+        ThesisStatus.PROPOSAL_GUIDANCE,
+        ThesisStatus.PROPOSAL_EXAM_SCHEDULED,
+        ThesisStatus.PROPOSAL_PASSED,
+        ThesisStatus.THESIS_GUIDANCE,
+        ThesisStatus.RESULT_EXAM_SCHEDULED,
+        ThesisStatus.RESULT_PASSED,
+        ThesisStatus.FINAL_EXAM_SCHEDULED,
+        ThesisStatus.REVISION,
+        ThesisStatus.REVISION_APPROVED,
+        ThesisStatus.COMPLETED,
+      ],
+    };
+
+    if (!allowedManualStatusesByMode[flowMode].includes(status)) {
+      throw new BadRequestException(
+        `Mode prodi ${flowMode} tidak mengizinkan status ${status}`,
+      );
+    }
 
     // Validasi: tidak bisa approve jika mahasiswa sudah punya proposal yang approved
     if (status === ThesisStatus.TITLE_APPROVED) {
@@ -328,9 +762,44 @@ export class ThesisService {
       }
     }
 
+    // Prevent direct status jumps that bypass key workflow stages.
+    const directAllowedTransitions: Partial<Record<ThesisStatus, ThesisStatus[]>> = {
+      [ThesisStatus.DRAFT]: [ThesisStatus.SUBMITTED],
+      [ThesisStatus.SUBMITTED]: [ThesisStatus.TITLE_APPROVED, ThesisStatus.REVISION],
+      [ThesisStatus.TITLE_APPROVED]: [ThesisStatus.SUPERVISOR_ASSIGNED],
+      [ThesisStatus.SUPERVISOR_ASSIGNED]: [this.getFlowStatusHint(flowMode)],
+      [ThesisStatus.PROPOSAL_GUIDANCE]: [ThesisStatus.PROPOSAL_EXAM_SCHEDULED],
+      [ThesisStatus.PROPOSAL_EXAM_SCHEDULED]: [ThesisStatus.PROPOSAL_PASSED, ThesisStatus.REVISION],
+      [ThesisStatus.PROPOSAL_PASSED]:
+        flowMode === ThesisFlowMode.C
+          ? [ThesisStatus.THESIS_GUIDANCE]
+          : [ThesisStatus.FINAL_EXAM_SCHEDULED],
+      [ThesisStatus.THESIS_GUIDANCE]: [ThesisStatus.RESULT_EXAM_SCHEDULED],
+      [ThesisStatus.RESULT_EXAM_SCHEDULED]: [ThesisStatus.RESULT_PASSED, ThesisStatus.REVISION],
+      [ThesisStatus.RESULT_PASSED]: [ThesisStatus.FINAL_EXAM_SCHEDULED],
+      [ThesisStatus.FINAL_EXAM_SCHEDULED]: [ThesisStatus.COMPLETED, ThesisStatus.REVISION],
+      [ThesisStatus.REVISION]: [ThesisStatus.REVISION_APPROVED],
+      [ThesisStatus.REVISION_APPROVED]:
+        flowMode === ThesisFlowMode.A
+          ? [ThesisStatus.THESIS_GUIDANCE]
+          : flowMode === ThesisFlowMode.B
+          ? [ThesisStatus.PROPOSAL_GUIDANCE]
+          : [ThesisStatus.PROPOSAL_GUIDANCE, ThesisStatus.THESIS_GUIDANCE],
+    };
+
+    if (status !== thesis.status) {
+      const allowedTargets = directAllowedTransitions[thesis.status] || [];
+      if (!allowedTargets.includes(status)) {
+        throw new BadRequestException(
+          `Transisi langsung dari ${thesis.status} ke ${status} tidak diizinkan. Gunakan endpoint transition atau alur ujian.`,
+        );
+      }
+    }
+
     thesis.status = status;
     if (status === ThesisStatus.TITLE_APPROVED) thesis.approvedAt = new Date();
     if (status === ThesisStatus.SUBMITTED) thesis.submittedAt = new Date();
+    if (status === ThesisStatus.COMPLETED) thesis.completedAt = new Date();
     await this.thesisRepo.save(thesis);
 
     return { message: 'Status berhasil diperbarui' };
@@ -358,12 +827,25 @@ export class ThesisService {
 
   // ============ MONITORING ============
 
-  async getMonitoring(prodiId?: number) {
+  async getMonitoring(prodiId?: number | number[]) {
     let query = this.thesisRepo.createQueryBuilder('t')
       .leftJoin('t.student', 'student')
       .leftJoin('t.prodi', 'prodi');
 
-    if (prodiId) query = query.andWhere('t.prodiId = :prodiId', { prodiId });
+    if (Array.isArray(prodiId)) {
+      if (prodiId.length === 0) {
+        return {
+          total: 0,
+          statusCounts: {},
+          alerts: [],
+          activeCount: 0,
+          completedCount: 0,
+        };
+      }
+      query = query.andWhere('t.prodiId IN (:...prodiIds)', { prodiIds: prodiId });
+    } else if (typeof prodiId === 'number') {
+      query = query.andWhere('t.prodiId = :prodiId', { prodiId });
+    }
 
     const all = await query.getMany();
 

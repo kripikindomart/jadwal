@@ -50,8 +50,17 @@ export class GuidanceLog {
   @Column({ nullable: true })
   attachmentUrl: string;
 
-  @Column({ default: 'DONE' })
-  status: string; // DONE | CANCELLED | NO_SHOW
+  @Column({ type: 'text', nullable: true })
+  reviewerNotes: string;
+
+  @Column({ type: 'text', nullable: true })
+  nextSteps: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  meetingType: string; // LURING | DARING | HYBRID
+
+  @Column({ default: 'PENDING' })
+  status: string; // PENDING | APPROVED | REJECTED
 
   @CreateDateColumn()
   createdAt: Date;

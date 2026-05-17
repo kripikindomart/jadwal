@@ -107,10 +107,11 @@ export class PublicLettersController {
     const supabaseUrl =
       process.env.SUPABASE_URL || 'https://thhtumfgfrcjuznfgmoy.supabase.co';
     const supabaseKey =
-      process.env.SUPABASE_SERVICE_ROLE ||
-      process.env.SUPABASE_ANON_KEY ||
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoaHR1bWZnZnJjanV6bmZnbW95Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjgzODA2MSwiZXhwIjoyMDg4NDE0MDYxfQ.bbD4pU_047MTxMs2QVeydwNe2fbtmbNSYWv72TubriA';
+      process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_ANON_KEY;
     const bucket = (process.env.SUPABASE_BUCKET || 'uploads').trim();
+    if (!supabaseKey) {
+      throw new BadRequestException('Supabase key belum dikonfigurasi.');
+    }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 

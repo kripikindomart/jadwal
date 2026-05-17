@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { GuidanceSchedule, LecturerProfile, StudentProfile, ThesisSubmission, Concentration } from '../../database/entities';
+import { Repository, In } from 'typeorm';
+import { GuidanceSchedule, LecturerProfile, StudentProfile, ThesisSubmission, Concentration, ThesisSupervisor, GuidanceLog } from '../../database/entities';
 import { GuidanceStatus } from '../../database/entities/guidance-schedule.entity';
 import { ThesisStatus } from '../../database/entities/thesis-submission.entity';
 
@@ -18,6 +18,10 @@ export class GuidanceService {
     private readonly thesisRepo: Repository<ThesisSubmission>,
     @InjectRepository(Concentration)
     private readonly concentrationRepo: Repository<Concentration>,
+    @InjectRepository(ThesisSupervisor)
+    private readonly thesisSupervisorRepo: Repository<ThesisSupervisor>,
+    @InjectRepository(GuidanceLog)
+    private readonly guidanceLogRepo: Repository<GuidanceLog>,
   ) {}
 
   // ============ STUDENT: Request Bimbingan ============
@@ -232,15 +236,200 @@ export class GuidanceService {
     return theses;
   }
 
-  async getAvailableLecturers() {
-    const lecturers = await this.lecturerProfileRepo.find({
-      relations: ['user'],
+  async getAvailableLecturers(studentUserId: number) {
+    const latestThesis = await this.thesisRepo.findOne({
+      where: { studentId: studentUserId },
+      order: { createdAt: 'DESC' },
+      select: ['id'],
     });
-    return lecturers.map((l) => ({
-      id: l.userId,
-      name: l.user?.name || '-',
-      fullName: `${l.frontTitle || ''} ${l.user?.name || ''} ${l.backTitle || ''}`.trim(),
-      nidn: l.nidn,
+
+    if (!latestThesis) return [];
+
+    const supervisors = await this.thesisSupervisorRepo.find({
+      where: { thesisId: latestThesis.id },
+      relations: ['lecturer', 'lecturer.lecturerProfile'],
+      order: { role: 'ASC' },
+    });
+
+    return supervisors.map((s) => ({
+      id: s.lecturerId,
+      name: s.lecturer?.name || '-',
+      fullName: `${s.lecturer?.lecturerProfile?.frontTitle || ''} ${s.lecturer?.name || ''} ${s.lecturer?.lecturerProfile?.backTitle || ''}`.trim(),
+      nidn: s.lecturer?.lecturerProfile?.nidn || null,
+      role: s.role,
+    }));
+  }
+
+  async getMyLogbook(studentId: number) {
+    const theses = await this.thesisRepo.find({
+      where: { studentId },
+      select: ['id', 'title', 'status'],
+      order: { createdAt: 'DESC' },
+    });
+    const thesisIds = theses.map((t) => t.id);
+    if (!thesisIds.length) return [];
+
+    const logs = await this.guidanceLogRepo.find({
+      where: { thesisId: In(thesisIds), studentId },
+      relations: ['lecturer', 'lecturer.lecturerProfile', 'thesis'],
+      order: { date: 'DESC', createdAt: 'DESC' },
+    });
+
+    return logs.map((l) => ({
+      id: l.id,
+      thesisId: l.thesisId,
+      thesisTitle: l.thesis?.title || '-',
+      date: l.date,
+      startTime: l.startTime,
+      endTime: l.endTime,
+      topic: l.topic,
+      notes: l.notes,
+      studentProgress: l.studentProgress,
+      nextAction: l.nextAction,
+      chapter: l.chapter,
+      attachmentUrl: l.attachmentUrl,
+      meetingType: l.meetingType || 'LURING',
+      reviewerNotes: l.reviewerNotes,
+      nextSteps: l.nextSteps,
+      status: l.status || 'PENDING',
+      lecturerId: l.lecturerId,
+      lecturerName: `${l.lecturer?.lecturerProfile?.frontTitle || ''} ${l.lecturer?.name || '-'} ${l.lecturer?.lecturerProfile?.backTitle || ''}`.trim(),
+      createdAt: l.createdAt,
+    }));
+  }
+
+  async createMyLogbook(studentId: number, data: {
+    thesisId: number;
+    lecturerId: number;
+    date: string;
+    startTime?: string;
+    endTime?: string;
+    topic: string;
+    notes?: string;
+    studentProgress?: string;
+    nextAction?: string;
+    chapter?: string;
+    attachmentUrl?: string;
+  }) {
+    const thesis = await this.thesisRepo.findOne({
+      where: { id: data.thesisId, studentId },
+      select: ['id', 'studentId'],
+    });
+    if (!thesis) throw new NotFoundException('Data tesis tidak ditemukan');
+
+    const supervisor = await this.thesisSupervisorRepo.findOne({
+      where: { thesisId: data.thesisId, lecturerId: data.lecturerId },
+      select: ['id'],
+    });
+    if (!supervisor) {
+      throw new BadRequestException('Dosen yang dipilih bukan pembimbing Anda');
+    }
+
+    const log = this.guidanceLogRepo.create({
+      thesisId: data.thesisId,
+      lecturerId: data.lecturerId,
+      studentId,
+      date: data.date,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      topic: data.topic,
+      notes: data.notes,
+      studentProgress: data.studentProgress,
+      nextAction: data.nextAction,
+      chapter: data.chapter,
+      attachmentUrl: data.attachmentUrl,
+      meetingType: (data as any).meetingType || 'LURING',
+      status: 'PENDING',
+    });
+    await this.guidanceLogRepo.save(log);
+    return { message: 'Logbook bimbingan berhasil dikirim untuk validasi', data: log };
+  }
+
+  async validateLogbook(logId: number, status: 'APPROVED' | 'REJECTED', reviewerNotes?: string, nextSteps?: string) {
+    const log = await this.guidanceLogRepo.findOne({ where: { id: logId } });
+    if (!log) throw new NotFoundException('Logbook tidak ditemukan');
+
+    log.status = status;
+    if (reviewerNotes !== undefined) log.reviewerNotes = reviewerNotes;
+    if (nextSteps !== undefined) log.nextSteps = nextSteps;
+    await this.guidanceLogRepo.save(log);
+    return { message: 'Validasi logbook berhasil disimpan', data: log };
+  }
+
+  async getLogbookForReview(filters: { lecturerId?: number; status?: 'PENDING' | 'APPROVED' | 'REJECTED' }) {
+    const where: any = {};
+    if (filters.lecturerId) where.lecturerId = filters.lecturerId;
+    if (filters.status) where.status = filters.status;
+
+    const logs = await this.guidanceLogRepo.find({
+      where,
+      relations: [
+        'student',
+        'student.studentProfile',
+        'lecturer',
+        'lecturer.lecturerProfile',
+        'thesis',
+      ],
+      order: { date: 'DESC', createdAt: 'DESC' },
+      take: 200,
+    });
+
+    return logs.map((l) => ({
+      id: l.id,
+      date: l.date,
+      startTime: l.startTime,
+      endTime: l.endTime,
+      status: l.status || 'PENDING',
+      topic: l.topic,
+      chapter: l.chapter,
+      studentProgress: l.studentProgress,
+      nextAction: l.nextAction,
+      notes: l.notes,
+      reviewerNotes: l.reviewerNotes,
+      nextSteps: l.nextSteps,
+      meetingType: l.meetingType || 'LURING',
+      attachmentUrl: l.attachmentUrl,
+      thesisId: l.thesisId,
+      thesisTitle: l.thesis?.title || '-',
+      studentId: l.studentId,
+      studentName: l.student?.name || '-',
+      studentNim: l.student?.studentProfile?.nim || '-',
+      lecturerId: l.lecturerId,
+      lecturerName: `${l.lecturer?.lecturerProfile?.frontTitle || ''} ${l.lecturer?.name || '-'} ${l.lecturer?.lecturerProfile?.backTitle || ''}`.trim(),
+      createdAt: l.createdAt,
+    }));
+  }
+
+  async getStudentLogbooks(studentId: number, lecturerId?: number) {
+    const where: any = { studentId };
+    if (lecturerId) where.lecturerId = lecturerId;
+
+    const logs = await this.guidanceLogRepo.find({
+      where,
+      relations: ['lecturer', 'lecturer.lecturerProfile', 'thesis'],
+      order: { date: 'DESC', createdAt: 'DESC' },
+    });
+
+    return logs.map((l) => ({
+      id: l.id,
+      date: l.date,
+      startTime: l.startTime,
+      endTime: l.endTime,
+      status: l.status || 'PENDING',
+      topic: l.topic,
+      chapter: l.chapter,
+      studentProgress: l.studentProgress,
+      nextAction: l.nextAction,
+      notes: l.notes,
+      reviewerNotes: l.reviewerNotes,
+      nextSteps: l.nextSteps,
+      meetingType: l.meetingType || 'LURING',
+      attachmentUrl: l.attachmentUrl,
+      thesisId: l.thesisId,
+      thesisTitle: l.thesis?.title || '-',
+      lecturerId: l.lecturerId,
+      lecturerName: `${l.lecturer?.lecturerProfile?.frontTitle || ''} ${l.lecturer?.name || '-'} ${l.lecturer?.lecturerProfile?.backTitle || ''}`.trim(),
+      createdAt: l.createdAt,
     }));
   }
 
@@ -300,13 +489,35 @@ export class GuidanceService {
     const thesis = await this.thesisRepo.findOne({ where: { id: thesisId, studentId: userId } });
     if (!thesis) throw new NotFoundException('Tugas akhir tidak ditemukan');
 
+    if (![ThesisStatus.DRAFT, ThesisStatus.SUBMITTED, ThesisStatus.REVISION].includes(thesis.status)) {
+      throw new BadRequestException('Proposal tidak bisa diedit pada status saat ini');
+    }
+
     if (data.title !== undefined) thesis.title = data.title;
     if (data.titleEn !== undefined) thesis.titleEn = data.titleEn;
     if (data.abstract !== undefined) thesis.abstract = data.abstract;
     if (data.type !== undefined) thesis.type = data.type;
+    if (data.keywords !== undefined) thesis.keywords = data.keywords;
+    if (data.concentration !== undefined) thesis.concentration = data.concentration;
+    if (data.documentUrl !== undefined) thesis.documentUrl = data.documentUrl;
+    if (data.plagiarismUrl !== undefined) thesis.plagiarismUrl = data.plagiarismUrl;
+    if (data.supervisorId1 !== undefined) thesis.requestedSupervisorId1 = data.supervisorId1;
+    if (data.supervisorId2 !== undefined) thesis.requestedSupervisorId2 = data.supervisorId2;
 
     await this.thesisRepo.save(thesis);
     return { message: 'Draft berhasil disimpan', data: thesis };
+  }
+
+  async cancelThesisSubmission(userId: number, thesisId: number) {
+    const thesis = await this.thesisRepo.findOne({ where: { id: thesisId, studentId: userId } });
+    if (!thesis) throw new NotFoundException('Tugas akhir tidak ditemukan');
+
+    if (![ThesisStatus.DRAFT, ThesisStatus.SUBMITTED, ThesisStatus.REVISION].includes(thesis.status)) {
+      throw new BadRequestException('Pengajuan tidak bisa dibatalkan pada status saat ini');
+    }
+
+    await this.thesisRepo.softDelete(thesisId);
+    return { message: 'Pengajuan berhasil dibatalkan' };
   }
 
   async uploadThesisFile(userId: number, file: any): Promise<{ url: string }> {
