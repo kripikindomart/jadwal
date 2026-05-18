@@ -274,7 +274,7 @@ const router = createRouter({
       path: "/letters/:id/print",
       name: "letters.print",
       component: () => import("@/pages/letters/LetterPrintPage.vue"),
-      meta: { layout: "blank" },
+      meta: { layout: "blank", public: true },
     },
 
     // Public Letters (Mahasiswa)
