@@ -321,6 +321,18 @@ const router = createRouter({
       meta: { layout: "admin" },
     },
     {
+      path: "/guidance/logbook/:studentId",
+      name: "guidance.logbook.detail",
+      component: () => import("@/pages/guidance/GuidanceLogbookDetailPage.vue"),
+      meta: { layout: "admin" },
+    },
+    {
+      path: "/guidance/logbook/review/:logbookId",
+      name: "guidance.logbook.review",
+      component: () => import("@/pages/guidance/GuidanceLogbookReviewPage.vue"),
+      meta: { layout: "admin" },
+    },
+    {
       path: "/thesis",
       name: "thesis",
       component: () => import("@/pages/thesis/ThesisListPage.vue"),

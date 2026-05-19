@@ -371,7 +371,6 @@ export class GuidanceService {
         'thesis',
       ],
       order: { date: 'DESC', createdAt: 'DESC' },
-      take: 200,
     });
 
     return logs.map((l) => ({
