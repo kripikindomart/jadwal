@@ -321,11 +321,9 @@ export class GuidanceController {
   @ApiOperation({ summary: 'Get all logbooks for a specific student' })
   getStudentLogbooks(
     @Param('studentId', ParseIntPipe) studentId: number,
-    @Req() req: any,
+    @Req() _req: any,
   ) {
-    const roles = (req.user?.roles || []).map((r: any) => r.slug);
-    const isDosenOnly = roles.includes('dosen') && !roles.includes('staff') && !roles.includes('admin') && !roles.includes('superadmin');
-    return this.guidanceService.getStudentLogbooks(studentId, isDosenOnly ? req.user.id : undefined);
+    return this.guidanceService.getStudentLogbooks(studentId);
   }
 
   // ============ DISPLAY TV ============

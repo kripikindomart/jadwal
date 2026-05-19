@@ -165,7 +165,7 @@ const isDosenOnly = computed(() => {
 })
 
 const pendingLogbooks = computed(() => logbookItems.value.filter((it: any) => it.status === 'PENDING'))
-const approvedLogbooks = computed(() => logbookItems.value.filter((it: any) => it.status === 'APPROVED'))
+const allLogbooks = computed(() => logbookItems.value)
 
 const historyRows = computed(() => {
   const scheduleRows = items.value.map((it: any) => ({
@@ -188,7 +188,7 @@ const historyRows = computed(() => {
     items.value.map((it: any) => `${it.studentId}-${it.date}-${it.topic || ''}`),
   )
 
-  const approvedRows = approvedLogbooks.value
+  const logbookRows = allLogbooks.value
     .filter((log: any) => !scheduleKey.has(`${log.studentId}-${log.date}-${log.topic || ''}`))
     .map((log: any) => ({
       id: `logbook-${log.id}`,
@@ -203,23 +203,70 @@ const historyRows = computed(() => {
       endTime: log.endTime,
       meetingType: log.meetingType || 'Tatap Muka',
       type: log.type || 'TESIS',
-      status: 'APPROVED',
+      status: log.status || 'PENDING',
     }))
 
-  return [...scheduleRows, ...approvedRows].sort(
+  return [...scheduleRows, ...logbookRows].sort(
     (a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime(),
   )
 })
 
-const totalSessions = computed(() => historyRows.value.length)
+const studentRows = computed(() => {
+  const map = new Map<number, any>()
+  for (const row of allLogbooks.value) {
+    if (!row.studentId) continue
+    const current = map.get(row.studentId)
+    if (!current) {
+      map.set(row.studentId, {
+        studentId: row.studentId,
+        studentName: row.studentName,
+        studentNim: row.studentNim,
+        latestDate: row.date,
+        latestTopic: row.topic,
+        thesisTitle: row.thesisTitle || '-',
+        totalEntries: 1,
+        pendingCount: row.status === 'PENDING' ? 1 : 0,
+        approvedCount: row.status === 'APPROVED' ? 1 : 0,
+        rejectedCount: row.status === 'REJECTED' ? 1 : 0,
+        latestStatus: row.status,
+      })
+    } else {
+      current.totalEntries += 1
+      if (row.status === 'PENDING') current.pendingCount += 1
+      if (row.status === 'APPROVED') current.approvedCount += 1
+      if (row.status === 'REJECTED') current.rejectedCount += 1
+      const currentDate = new Date(current.latestDate).getTime()
+      const nextDate = new Date(row.date).getTime()
+      if (nextDate > currentDate) {
+        current.latestDate = row.date
+        current.latestTopic = row.topic
+        current.thesisTitle = row.thesisTitle || current.thesisTitle
+        current.latestStatus = row.status
+      }
+      if ((!current.thesisTitle || current.thesisTitle === '-') && row.thesisTitle) {
+        current.thesisTitle = row.thesisTitle
+      }
+    }
+  }
+  for (const s of map.values()) {
+    if (s.pendingCount > 0) s.latestStatus = 'PENDING'
+    else if (s.rejectedCount > 0) s.latestStatus = 'REJECTED'
+    else if (s.approvedCount > 0) s.latestStatus = 'APPROVED'
+  }
+  return Array.from(map.values()).sort(
+    (a: any, b: any) => new Date(b.latestDate).getTime() - new Date(a.latestDate).getTime(),
+  )
+})
+
+const totalSessions = computed(() => allLogbooks.value.length)
 const needFeedbackCount = computed(() => pendingLogbooks.value.length)
-const filteredHistoryRows = computed(() => {
+const filteredStudentRows = computed(() => {
   const q = search.value.trim().toLowerCase()
-  return historyRows.value.filter((it: any) => {
-    const hitSearch = !q || `${it.studentName || ''} ${it.studentNim || ''} ${it.topic || ''}`.toLowerCase().includes(q)
-    const hitType = !filterType.value || it.type === filterType.value
-    const hitStatus = !filterStatus.value || it.status === filterStatus.value
-    const hitDate = !filterDate.value || new Date(it.date).toISOString().slice(0, 10) === filterDate.value
+  return studentRows.value.filter((it: any) => {
+    const hitSearch = !q || `${it.studentName || ''} ${it.studentNim || ''} ${it.latestTopic || ''} ${it.thesisTitle || ''}`.toLowerCase().includes(q)
+    const hitType = true
+    const hitStatus = !filterStatus.value || it.latestStatus === filterStatus.value
+    const hitDate = !filterDate.value || new Date(it.latestDate).toISOString().slice(0, 10) === filterDate.value
     return hitSearch && hitType && hitStatus && hitDate
   })
 })
@@ -340,7 +387,7 @@ const formatAttachmentName = (url: string) => {
           <Loader2 class="h-8 w-8 mx-auto animate-spin mb-3 text-blue-600" />
           <p class="text-sm font-medium">Memuat data bimbingan...</p>
         </div>
-        <div v-else-if="filteredHistoryRows.length === 0" class="p-16 text-center text-slate-400">
+        <div v-else-if="filteredStudentRows.length === 0" class="p-16 text-center text-slate-400">
           <Calendar class="h-12 w-12 mx-auto mb-4 text-slate-300" />
           <p class="text-base font-bold text-slate-600">Belum ada riwayat bimbingan</p>
           <p class="text-sm text-slate-400 mt-1">Riwayat akan muncul dari jadwal atau logbook yang sudah disetujui.</p>
@@ -358,7 +405,7 @@ const formatAttachmentName = (url: string) => {
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-              <tr v-for="item in filteredHistoryRows" :key="item.id" class="hover:bg-slate-50/50 transition">
+              <tr v-for="item in filteredStudentRows" :key="`student-${item.studentId}`" class="hover:bg-slate-50/50 transition">
                 <td class="py-4 px-6">
                   <div class="flex items-center gap-3">
                     <div class="h-10 w-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-sm border border-slate-200">
@@ -371,21 +418,20 @@ const formatAttachmentName = (url: string) => {
                   </div>
                 </td>
                 <td class="py-4 px-6 max-w-[320px]">
-                  <p class="text-slate-800 font-medium line-clamp-2 leading-relaxed">{{ item.topic || '-' }}</p>
+                  <p class="text-slate-800 font-medium line-clamp-2 leading-relaxed">{{ item.thesisTitle || '-' }}</p>
                 </td>
                 <td class="py-4 px-6">
-                  <p class="font-semibold text-slate-900">{{ new Date(item.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) }}</p>
-                  <p class="text-xs text-slate-500 mt-0.5">{{ item.startTime?.slice(0,5) }} - {{ item.endTime?.slice(0,5) }} WIB</p>
+                  <p class="font-semibold text-slate-900">{{ new Date(item.latestDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) }}</p>
+                  <p class="text-xs text-slate-500 mt-0.5">{{ item.totalEntries }} riwayat</p>
                 </td>
                 <td class="py-4 px-6">
                   <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                    <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                    {{ item.meetingType || 'Tatap Muka' }}
+                    P: {{ item.pendingCount }} • A: {{ item.approvedCount }} • R: {{ item.rejectedCount }}
                   </span>
                 </td>
                 <td class="py-4 px-6 text-center">
-                  <span :class="['inline-flex items-center px-3 py-1 rounded-full text-xs font-bold leading-none', statusConfig[item.status]?.class || 'bg-slate-100 text-slate-500 border border-slate-200']">
-                    {{ statusConfig[item.status]?.label || item.status }}
+                  <span :class="['inline-flex items-center px-3 py-1 rounded-full text-xs font-bold leading-none', statusConfig[item.latestStatus]?.class || 'bg-slate-100 text-slate-500 border border-slate-200']">
+                    {{ statusConfig[item.latestStatus]?.label || item.latestStatus }}
                   </span>
                 </td>
                 <td class="py-4 px-6 text-right">
