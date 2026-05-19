@@ -18,6 +18,18 @@ const nextSteps = ref('')
 
 const logbookId = computed(() => Number(route.params.logbookId))
 
+const backToStudentDetail = () => {
+  if (logbook.value?.studentId) {
+    router.push({
+      name: 'guidance.logbook.detail',
+      params: { studentId: logbook.value.studentId },
+      query: { name: logbook.value.studentName || '' },
+    })
+    return
+  }
+  router.push('/guidance')
+}
+
 const formatAttachmentName = (url: string) => {
   if (!url) return ''
   const parts = url.split('/')
@@ -52,7 +64,7 @@ async function submitVerification() {
       reviewerNotes: reviewerNotes.value,
       nextSteps: nextSteps.value,
     })
-    router.push('/guidance')
+    backToStudentDetail()
   } catch (e: any) {
     alert(e.response?.data?.message || 'Gagal menyimpan feedback verifikasi')
   } finally {
@@ -66,7 +78,7 @@ onMounted(fetchData)
 <template>
   <div class="space-y-4 max-w-[1300px] mx-auto p-4 md:p-6 text-slate-800">
     <div class="flex items-center gap-3">
-      <button @click="router.push('/guidance')" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100">
+      <button @click="backToStudentDetail" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100">
         <ArrowLeft class="h-4 w-4" />
       </button>
       <h1 class="text-2xl font-extrabold text-slate-900">Persetujuan & Feedback Logbook</h1>
@@ -151,4 +163,3 @@ onMounted(fetchData)
     </div>
   </div>
 </template>
-
